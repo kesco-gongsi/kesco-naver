@@ -4,12 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="color-scheme" content="light only">
+    
+    <meta name="referrer" content="unsafe-url"> 
+
     <title>KESCO 현장 점검지도 (네이버맵)</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=n58317v9g5&submodules=geocoder"></script>
     
-<script src="https://cdn.jsdelivr.net/gh/navermaps/marker-tools.js@master/marker-clustering/src/MarkerClustering.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/navermaps/marker-tools.js@master/marker-clustering/src/MarkerClustering.js"></script>
 
     <style>
         :root { color-scheme: light; }
@@ -78,11 +82,11 @@
             <button id="btn-sky" class="m-type-btn inactive" onclick="setMapType('SATELLITE')">위성지도</button>
         </div>
 
-        <h3>📊 점검 지도</h3>
+        <h3>📊 점검 관리</h3>
         <div id="menu-content">
             <input type="file" id="excel-file" accept=".xlsx, .xls" style="font-size:12px; margin-bottom:15px; width: 100%;">
-            <button id="upload-btn" class="btn">📍 엑셀 데이터 표기</button>
-            <button id="track-btn" class="btn">📡 위치 표기 시작</button>
+            <button id="upload-btn" class="btn">📍 엑셀 데이터 등록</button>
+            <button id="track-btn" class="btn">📡 위치 추적 시작</button>
             <button id="clear-btn" class="btn">🔄 전체 초기화</button>
             <div id="status">지도를 길게 눌러 핀 추가</div>
         </div>
@@ -94,8 +98,8 @@
         var watchId = null;
         var currentSites = [];
         var currentInfoWindow = null;
-        var myLocMarker = null; // 커스텀 오버레이로 현위치 표현
-        var drawnMarkers = []; // 화면에 그려진 마커 배열 추적
+        var myLocMarker = null; 
+        var drawnMarkers = []; 
 
         var colorMap = { 1: "#0055AA", 2: "#EF4444", 3: "#22C55E", 4: "#F97316", 5: "#A855F7", 6: "#EC4899", 7: "#EAB308", 8: "#06B6D4", 9: "#78350F", 10: "#1F2937" };
 
@@ -113,12 +117,11 @@
                 map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
                 roadBtn.className = 'm-type-btn active'; skyBtn.className = 'm-type-btn inactive';
             } else {
-                map.setMapTypeId(naver.maps.MapTypeId.HYBRID); // 스카이뷰+도로명
+                map.setMapTypeId(naver.maps.MapTypeId.HYBRID); 
                 skyBtn.className = 'm-type-btn active'; roadBtn.className = 'm-type-btn inactive';
             }
         }
 
-        // 방향 센서 핸들러
         var isAbsoluteOrientation = false;
         function handleOrientation(event) {
             var heading = null;
@@ -136,19 +139,17 @@
             }
         }
 
-        // 1. 네이버 맵 초기화
         window.onload = function() {
             var mapOptions = {
                 center: new naver.maps.LatLng(35.9180, 127.1241),
-                zoom: 13, // 카카오의 level:8 과 유사
-                mapTypeControl: false, // 커스텀 버튼을 쓰므로 기본 컨트롤 숨김
+                zoom: 13,
+                mapTypeControl: false, 
                 scaleControl: true,
                 logoControl: true,
                 mapDataControl: false
             };
             map = new naver.maps.Map('map', mapOptions);
 
-            // 단 하나의 공용 InfoWindow 생성
             currentInfoWindow = new naver.maps.InfoWindow({
                 content: "",
                 backgroundColor: "#ffffff",
@@ -160,14 +161,12 @@
                 pixelOffset: new naver.maps.Point(0, -10)
             });
 
-            // 지도 바탕 클릭 시 인포윈도우 닫기
             naver.maps.Event.addListener(map, 'click', function() {
                 if (currentInfoWindow.getMap()) {
                     currentInfoWindow.close();
                 }
             });
 
-            // [네이버맵] 롱클릭(rightclick) 시 마커 추가 로직
             naver.maps.Event.addListener(map, 'rightclick', function(e) {
                 addManualMarker(e.coord);
             });
@@ -179,13 +178,11 @@
             }
         };
 
-        // 2. 수동 마커(롱클릭) 추가 로직 (Reverse Geocoding)
         function addManualMarker(latLng) {
             var title = prompt("📍 새로운 장소의 상호를 입력하세요:", "");
             if(!title) return;
             var memo = prompt("📝 메모를 입력하세요 (없으면 확인):", "");
             
-            // 네이버 Reverse Geocoding 호출
             naver.maps.Service.reverseGeocode({
                 coords: latLng,
             }, function(status, response) {
@@ -204,7 +201,6 @@
             });
         }
 
-        // 3. 엑셀 데이터 등록 (Geocoding)
         document.getElementById('upload-btn').onclick = function() {
             var file = document.getElementById('excel-file').files[0];
             if(!file) return alert("파일을 선택해주세요.");
@@ -225,7 +221,6 @@
                             var colorType = row[2] || 1;
                             
                             if(addr) {
-                                // 네이버 Geocoding 호출
                                 naver.maps.Service.geocode({ query: addr }, function(status, response) {
                                     if (status === naver.maps.Service.Status.OK && response.v2.addresses.length > 0) {
                                         var item = response.v2.addresses[0];
@@ -245,14 +240,13 @@
                                 count++; 
                                 if(count === total) { currentSites = successData; saveAndRender(); toggleMenu(); } 
                             }
-                        }, idx * 50); // API Rate Limit 방지용 딜레이
+                        }, idx * 50); 
                     })(json[i], i);
                 }
             };
             reader.readAsArrayBuffer(file);
         };
 
-        // 4. 위치 추적 로직 (CustomOverlay 적용)
         document.getElementById('track-btn').onclick = function() {
             if(watchId) {
                 navigator.geolocation.clearWatch(watchId); watchId = null;
@@ -275,7 +269,6 @@
                         var moveLoc = new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
                         
                         if(!myLocMarker) {
-                            // 커스텀 DOM 생성을 통한 네이버 마커
                             myLocMarker = new naver.maps.Marker({
                                 position: moveLoc,
                                 map: map,
@@ -298,9 +291,7 @@
             }
         };
 
-        // 5. 마커 그리기 및 클러스터링 로직
         function drawMarkers() {
-            // 기존 마커 및 클러스터러 완전히 정리
             if(clusterer) { clusterer.setMap(null); }
             drawnMarkers.forEach(function(m) { m.setMap(null); });
             drawnMarkers = [];
@@ -317,7 +308,6 @@
                 var first = group[0];
                 var mColor = colorMap[first.colorCode] || "#0055AA";
                 
-                // SVG 마커 생성
                 var iconContent = [
                     `<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">`,
                     `<path d="M15 0C6.716 0 0 6.716 0 15c0 11.25 15 25 15 25s15-13.75 15-25c0-8.284-6.716-15-15-15z" fill="${mColor}"/>`,
@@ -329,7 +319,6 @@
                     icon: { content: iconContent, size: new naver.maps.Size(30, 40), anchor: new naver.maps.Point(15, 40) }
                 });
 
-                // 말풍선 DOM 조립
                 var container = document.createElement('div');
                 container.className = 'iw-container';
                 container.style.padding = '15px'; container.style.borderRadius = '12px';
@@ -364,7 +353,6 @@
                     absentRow.appendChild(document.createTextNode(' 미점검 (부재)'));
                     itemDiv.appendChild(absentRow);
 
-                    // 네이버맵 길찾기 링크 (도착지 위도경도 파라미터)
                     var navA = document.createElement('a');
                     navA.className = 'nav-btn';
                     navA.href = `http://app.map.naver.com/launchApp/?version=11&menu=navigation&elat=${item.lat}&elng=${item.lng}&etitle=${item.title}`;
@@ -387,7 +375,6 @@
                 
                 container.appendChild(listArea);
                 
-                // 마커 클릭 이벤트 연결
                 naver.maps.Event.addListener(marker, 'click', function(e) {
                     currentInfoWindow.setContent(container);
                     currentInfoWindow.open(map, marker);
@@ -396,25 +383,25 @@
                 drawnMarkers.push(marker);
             });
 
-            // 네이버 클러스터러 렌더링
-            clusterer = new MarkerClustering({
-                minClusterSize: 2,
-                maxZoom: 14,
-                map: map,
-                markers: drawnMarkers,
-                disableClickZoom: false,
-                gridSize: 120,
-                icons: [{
-                    content: '<div class="marker-cluster" style="width:40px;height:40px;line-height:40px;"></div>',
-                    size: new naver.maps.Size(40, 40),
-                    anchor: new naver.maps.Point(20, 20)
-                }],
-                indexGenerator: [10],
-                stylingFunction: function(clusterMarker, count) {
-                    // 클러스터 숫자 삽입
-                    clusterMarker.getElement().querySelector('div').innerText = count;
-                }
-            });
+            if (typeof MarkerClustering !== 'undefined') {
+                clusterer = new MarkerClustering({
+                    minClusterSize: 2,
+                    maxZoom: 14,
+                    map: map,
+                    markers: drawnMarkers,
+                    disableClickZoom: false,
+                    gridSize: 120,
+                    icons: [{
+                        content: '<div class="marker-cluster" style="width:40px;height:40px;line-height:40px;"></div>',
+                        size: new naver.maps.Size(40, 40),
+                        anchor: new naver.maps.Point(20, 20)
+                    }],
+                    indexGenerator: [10],
+                    stylingFunction: function(clusterMarker, count) {
+                        clusterMarker.getElement().querySelector('div').innerText = count;
+                    }
+                });
+            }
         }
 
         function saveAndRender() {
