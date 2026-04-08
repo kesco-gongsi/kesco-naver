@@ -15,7 +15,6 @@
         :root { color-scheme: light; }
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f0f2f5; color: #333; }
         
-        /* 모바일 롱클릭 방해 요소 완전 차단 */
         #map { 
             width: 100%; height: 100vh; position: absolute; top: 0; left: 0; 
             -webkit-touch-callout: none;
@@ -81,12 +80,12 @@
         <div class="map-type-wrapper" style="margin-top:15px;">
             <button id="btn-road" class="m-type-btn active" onclick="setMapType('NORMAL')">일반</button>
             <button id="btn-sky" class="m-type-btn inactive" onclick="setMapType('SATELLITE')">위성</button>
-            <button id="btn-cadastral" class="m-type-btn inactive" onclick="toggleCadastral()">지적편집도</button>
+            <button id="btn-cadastral" class="m-type-btn inactive" onclick="toggleCadastral()">지적도</button>
         </div>
         <div id="menu-content">
             <input type="file" id="excel-file" accept=".xlsx, .xls" style="font-size:11px; margin-bottom:10px; width: 100%;">
             <button id="upload-btn" class="btn">📍 엑셀 데이터 등록</button>
-            <button id="track-btn" class="btn">📡 위치 추적 시작</button>
+            <button id="track-btn" class="btn">📡 위치 표기 시작</button>
             <button id="clear-btn" class="btn">🔄 전체 초기화</button>
             <div id="status">지도를 길게 눌러 핀 추가</div>
         </div>
@@ -148,7 +147,7 @@
             map = new naver.maps.Map('map', {
                 center: new naver.maps.LatLng(35.9180, 127.1241),
                 zoom: 14,
-                disableContextMenu: true // 네이버 자체 컨텍스트 메뉴 비활성
+                disableContextMenu: true // 네이버 기본 컨텍스트 메뉴 비활성
             });
 
             cadastralLayer = new naver.maps.CadastralLayer();
@@ -161,40 +160,44 @@
 
             naver.maps.Event.addListener(map, 'click', function() { currentInfoWindow.close(); });
 
-            // ★ 해결책 1: 시스템 브라우저의 기본 우클릭 메뉴를 DOM 레벨에서 원천 차단
-            document.getElementById('map').addEventListener('contextmenu', function(e) {
-                e.preventDefault(); 
-            });
+            // 시스템 브라우저 우클릭 원천 차단
+            document.getElementById('map').addEventListener('contextmenu', function(e) { e.preventDefault(); });
 
-            // PC 마우스 우클릭
+            // PC 마우스 우클릭 유지
             naver.maps.Event.addListener(map, 'rightclick', function(e) {
                 addManualMarker(e.coord);
             });
 
-            // ★ 해결책 2: 모바일 롱클릭 직접 구현 (기본 이벤트 무시)
+            // ★ 개선된 모바일 터치 이벤트 (줌인/줌아웃 간섭 방지)
             var touchTimer = null;
-            var isLongPressed = false;
             
             naver.maps.Event.addListener(map, 'touchstart', function(e) {
-                isLongPressed = false;
+                // 두 손가락 이상 터치된 경우 핀치 줌으로 간주하여 롱클릭 타이머 취소/무시
+                if (e.domEvent && e.domEvent.touches && e.domEvent.touches.length > 1) {
+                    clearTimeout(touchTimer);
+                    return;
+                }
+                
                 touchTimer = setTimeout(function() {
-                    isLongPressed = true;
-                    // 진동 지원시 햅틱 반응
                     if(navigator.vibrate) navigator.vibrate(50);
-                    // prompt창 띄울 때 스레드 꼬임 방지
                     setTimeout(function() { addManualMarker(e.coord); }, 50);
-                }, 700); // 0.7초 누르면 실행
+                }, 700); 
             });
 
+            // 손가락이 조금이라도 움직이거나 떨어지면 타이머 취소
             naver.maps.Event.addListener(map, 'touchmove', function(e) { clearTimeout(touchTimer); });
             naver.maps.Event.addListener(map, 'touchend', function(e) { clearTimeout(touchTimer); });
+            
+            // 지도 확대/축소, 드래그 이벤트 발생 시 무조건 타이머 취소 (이중 안전장치)
+            naver.maps.Event.addListener(map, 'dragstart', function(e) { clearTimeout(touchTimer); });
+            naver.maps.Event.addListener(map, 'pinch', function(e) { clearTimeout(touchTimer); });
 
             var saved = localStorage.getItem('kesco_map_data');
             if(saved) { currentSites = JSON.parse(saved); drawMarkers(); }
         };
 
         function addManualMarker(latLng) {
-            var title = prompt("📍 장소 명칭을 입력하세요:", "");
+            var title = prompt("📍 장소 상호를 입력하세요:", "");
             if(!title) return;
             var memo = prompt("📝 메모 (선택):", "");
             
@@ -303,7 +306,6 @@
                     icon: { content: iconContent, size: new naver.maps.Size(30, 40), anchor: new naver.maps.Point(15, 40) }
                 });
 
-                // ★ 누락되었던 부재(absent) 추가 기능 및 요소를 원상 복구합니다.
                 var container = document.createElement('div');
                 container.className = 'iw-container';
                 container.style.padding = '15px'; container.style.borderRadius = '12px';
@@ -329,7 +331,7 @@
                         itemDiv.appendChild(mDiv);
                     }
 
-                    // 1. 부재 체크박스 복구
+                    // 부재 체크박스
                     var absentRow = document.createElement('label');
                     absentRow.className = 'absent-row';
                     var checkbox = document.createElement('input');
@@ -342,7 +344,7 @@
                     absentRow.appendChild(document.createTextNode(' 미점검 (부재)'));
                     itemDiv.appendChild(absentRow);
 
-                    // 2. 네이버 길찾기 (정상 작동 확인된 /p/ 구조 유지)
+                    // 길찾기
                     var navA = document.createElement('a');
                     navA.className = 'nav-btn';
                     var encodedTitle = encodeURIComponent(item.title);
@@ -351,7 +353,7 @@
                     navA.innerText = "🚗 네이버 내비 실행";
                     itemDiv.appendChild(navA);
 
-                    // 3. 삭제 버튼
+                    // 삭제
                     var dBtn = document.createElement('button');
                     dBtn.className = 'del-btn'; dBtn.innerText = '점검완료 및 삭제';
                     dBtn.onclick = function() {
