@@ -41,7 +41,6 @@
         #clear-btn { background: #ffffff; color: #666; border: 1px solid #ddd; margin-top: 10px; }
         #status { margin-top: 10px; font-size: 12px; color: #666; text-align: center; font-weight: bold; }
 
-        /* 말풍선 내부 스타일 */
         .iw-container { background-color: #ffffff; color: #333333; width: 220px; box-sizing: border-box; }
         .iw-header { padding-bottom: 8px; margin-bottom: 5px; font-size: 14px; }
         .iw-list-area { max-height: 250px; overflow-y: auto; padding-right: 5px; }
@@ -55,7 +54,6 @@
         .nav-btn { display: block; background: #0055AA; color: white; text-align: center; padding: 8px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; margin-top: 8px; }
         .del-btn { display: block; margin-top: 5px; background: #fecaca; color: #b91c1c; text-align: center; padding: 8px; border-radius: 6px; font-size: 11px; font-weight: bold; border: none; width: 100%; cursor: pointer; }
 
-        /* 현위치 방향 화살표 스타일 */
         .my-location-marker { position: relative; width: 50px; height: 50px; pointer-events: none; }
         .direction-arrow { 
             position: absolute; top: 0px; left: 15px; width: 20px; height: 25px; 
@@ -68,7 +66,6 @@
             background: #0055AA; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 3; 
         }
 
-        /* 네이버 클러스터 아이콘 기본 스타일 오버라이드 */
         .marker-cluster { background: rgba(0, 85, 170, 0.9); border-radius: 50%; color: white; font-weight: bold; text-align: center; }
     </style>
 </head>
@@ -81,11 +78,11 @@
             <button id="btn-sky" class="m-type-btn inactive" onclick="setMapType('SATELLITE')">위성지도</button>
         </div>
 
-        <h3>📊 점검 관리</h3>
+        <h3>📊 점검 지도</h3>
         <div id="menu-content">
             <input type="file" id="excel-file" accept=".xlsx, .xls" style="font-size:12px; margin-bottom:15px; width: 100%;">
-            <button id="upload-btn" class="btn">📍 엑셀 데이터 등록</button>
-            <button id="track-btn" class="btn">📡 위치 추적 시작</button>
+            <button id="upload-btn" class="btn">📍 엑셀 데이터 표출</button>
+            <button id="track-btn" class="btn">📡 위치 표기 시작</button>
             <button id="clear-btn" class="btn">🔄 전체 초기화</button>
             <div id="status">지도를 길게 눌러 핀 추가</div>
         </div>
@@ -166,6 +163,7 @@
                 }
             });
 
+            // 우클릭(롱클릭) 이벤트
             naver.maps.Event.addListener(map, 'rightclick', function(e) {
                 addManualMarker(e.coord);
             });
@@ -184,10 +182,16 @@
             
             naver.maps.Service.reverseGeocode({
                 coords: latLng,
+                orders: [
+                    naver.maps.Service.OrderType.ADDR,
+                    naver.maps.Service.OrderType.ROAD_ADDR
+                ].join(',')
             }, function(status, response) {
                 var addrStr = "수동 등록 지점";
-                if (status === naver.maps.Service.Status.OK && response.v2.address) {
-                    addrStr = response.v2.address.roadAddress || response.v2.address.jibunAddress || "수동 등록 지점";
+                // 응답 구조 보완 (v2.results 체크)
+                if (status === naver.maps.Service.Status.OK && response.v2.results.length > 0) {
+                    var res = response.v2.results[0];
+                    addrStr = res.region.area1.name + " " + res.region.area2.name + " " + res.region.area3.name + " " + res.land.number1;
                 }
                 
                 var newSite = {
@@ -313,8 +317,10 @@
                     `<circle cx="15" cy="15" r="6" fill="white"/></svg>`
                 ].join('');
 
+                // ★ 수정 포인트: map 객체를 지정해야 지도에 마커가 나타납니다.
                 var marker = new naver.maps.Marker({
                     position: new naver.maps.LatLng(first.lat, first.lng),
+                    map: map,
                     icon: { content: iconContent, size: new naver.maps.Size(30, 40), anchor: new naver.maps.Point(15, 40) }
                 });
 
@@ -352,11 +358,13 @@
                     absentRow.appendChild(document.createTextNode(' 미점검 (부재)'));
                     itemDiv.appendChild(absentRow);
 
+                    // ★ 수정 포인트: 최신형 네이버 지도 길찾기 URL (앱/웹 자동 호환)
                     var navA = document.createElement('a');
                     navA.className = 'nav-btn';
-                    navA.href = `http://app.map.naver.com/launchApp/?version=11&menu=navigation&elat=${item.lat}&elng=${item.lng}&etitle=${item.title}`;
+                    var encodedTitle = encodeURIComponent(item.title);
+                    navA.href = `https://map.naver.com/v5/directions/-/-/${item.lng},${item.lat},${encodedTitle}/-/car`;
                     navA.target = "_blank";
-                    navA.innerText = "🚗 네이버 내비 길찾기";
+                    navA.innerText = "🚗 네이버 지도 길찾기";
                     itemDiv.appendChild(navA);
 
                     var dBtn = document.createElement('button');
