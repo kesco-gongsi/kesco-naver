@@ -4,20 +4,25 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="color-scheme" content="light only">
-    
     <meta name="referrer" content="no-referrer-when-downgrade">
     <title>KESCO 현장 점검지도 (네이버맵)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=n58317v9g5&submodules=geocoder"></script>
-    
     <script src="https://cdn.jsdelivr.net/gh/navermaps/marker-tools.js@master/marker-clustering/src/MarkerClustering.js"></script>
 
     <style>
         :root { color-scheme: light; }
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f0f2f5; color: #333; }
-        #map { width: 100%; height: 100vh; position: absolute; top: 0; left: 0; background-color: #f9f9f9; }
+        
+        /* 모바일 롱클릭 시 시스템 메뉴 방해 금지 */
+        #map { 
+            width: 100%; height: 100vh; position: absolute; top: 0; left: 0; 
+            background-color: #f9f9f9; 
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
 
         #upload-box {
             position: absolute; top: 15px; left: 15px; z-index: 1001; 
@@ -142,7 +147,9 @@
                 mapTypeControl: false, 
                 scaleControl: true,
                 logoControl: true,
-                mapDataControl: false
+                mapDataControl: false,
+                // 모바일 롱클릭 방해 차단 설정 추가
+                disableContextMenu: true
             };
             map = new naver.maps.Map('map', mapOptions);
 
@@ -188,10 +195,17 @@
                 ].join(',')
             }, function(status, response) {
                 var addrStr = "수동 등록 지점";
-                // 응답 구조 보완 (v2.results 체크)
-                if (status === naver.maps.Service.Status.OK && response.v2.results.length > 0) {
-                    var res = response.v2.results[0];
-                    addrStr = res.region.area1.name + " " + res.region.area2.name + " " + res.region.area3.name + " " + res.land.number1;
+                try {
+                    if (status === naver.maps.Service.Status.OK && response.v2.results.length > 0) {
+                        var res = response.v2.results[0];
+                        var a1 = res.region.area1 ? res.region.area1.name : "";
+                        var a2 = res.region.area2 ? res.region.area2.name : "";
+                        var a3 = res.region.area3 ? res.region.area3.name : "";
+                        var landNum = res.land ? (res.land.number1 + (res.land.number2 ? "-" + res.land.number2 : "")) : "";
+                        addrStr = `${a1} ${a2} ${a3} ${landNum}`.trim() || "주소 정보 없음";
+                    }
+                } catch(e) {
+                    addrStr = "수동 등록 지점";
                 }
                 
                 var newSite = {
@@ -317,7 +331,6 @@
                     `<circle cx="15" cy="15" r="6" fill="white"/></svg>`
                 ].join('');
 
-                // ★ 수정 포인트: map 객체를 지정해야 지도에 마커가 나타납니다.
                 var marker = new naver.maps.Marker({
                     position: new naver.maps.LatLng(first.lat, first.lng),
                     map: map,
@@ -358,11 +371,11 @@
                     absentRow.appendChild(document.createTextNode(' 미점검 (부재)'));
                     itemDiv.appendChild(absentRow);
 
-                    // ★ 수정 포인트: 최신형 네이버 지도 길찾기 URL (앱/웹 자동 호환)
                     var navA = document.createElement('a');
                     navA.className = 'nav-btn';
                     var encodedTitle = encodeURIComponent(item.title);
-                    navA.href = `https://map.naver.com/v5/directions/-/-/${item.lng},${item.lat},${encodedTitle}/-/car`;
+                    // ★ 수정 포인트: 목적지가 확실히 입력되는 최신형 URL ( // 사용 )
+                    navA.href = `https://map.naver.com/v5/directions//${item.lng},${item.lat},${encodedTitle}/-/car`;
                     navA.target = "_blank";
                     navA.innerText = "🚗 네이버 지도 길찾기";
                     itemDiv.appendChild(navA);
