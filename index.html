@@ -15,11 +15,14 @@
         :root { color-scheme: light; }
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f0f2f5; color: #333; }
         
+        /* 모바일 롱클릭 방해 요소 완전 차단 */
         #map { 
             width: 100%; height: 100vh; position: absolute; top: 0; left: 0; 
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
+            outline: none;
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
         }
 
         #upload-box {
@@ -37,8 +40,6 @@
         .m-type-btn { flex: 1; padding: 8px; font-size: 12px; font-weight: bold; border: 1px solid #0055AA; border-radius: 6px; cursor: pointer; }
         .m-type-btn.active { background: #0055AA; color: white; }
         .m-type-btn.inactive { background: white; color: #0055AA; }
-        
-        /* 지적도 버튼은 색상을 조금 다르게 주어 구분을 명확히 함 */
         #btn-cadastral.active { background: #EAB308; color: white; border-color: #EAB308; }
 
         .btn { width: 100%; padding: 12px; margin-bottom: 8px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; }
@@ -47,24 +48,30 @@
         #clear-btn { background: #ffffff; color: #666; border: 1px solid #ddd; margin-top: 10px; }
         #status { margin-top: 10px; font-size: 12px; color: #666; text-align: center; font-weight: bold; }
 
-        .iw-container { background-color: #ffffff; color: #333333; width: 220px; padding: 15px; border-radius: 12px; }
+        .iw-container { background-color: #ffffff; color: #333333; width: 220px; box-sizing: border-box; }
         .iw-header { padding-bottom: 8px; margin-bottom: 5px; font-size: 14px; font-weight: bold; }
+        .iw-list-area { max-height: 250px; overflow-y: auto; padding-right: 5px; }
         .iw-item { border-bottom: 1px solid #eee; padding: 12px 0; }
-        .memo-text { font-size: 11px; color: #059669; margin: 5px 0; background: #ecfdf5; padding: 6px; border-radius: 4px; border-left: 3px solid #10b981; }
+        .iw-item:last-child { border-bottom: none; }
         
-        .nav-btn { display: block; background: #0055AA; color: white; text-align: center; padding: 10px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: bold; margin-top: 8px; }
-        .del-btn { display: block; margin-top: 5px; background: #fecaca; color: #b91c1c; text-align: center; padding: 10px; border-radius: 6px; font-size: 12px; border: none; width: 100%; cursor: pointer; }
+        .absent-row { display: flex; align-items: center; margin: 8px 0; font-size: 12px; color: #ef4444; font-weight: bold; cursor: pointer; }
+        .absent-row input { margin-right: 6px; width: 16px; height: 16px; cursor: pointer; }
+        .memo-text { font-size: 11px; color: #059669; margin: 5px 0; font-style: italic; background: #ecfdf5; padding: 6px; border-radius: 4px; border-left: 3px solid #10b981; }
+        
+        .nav-btn { display: block; background: #0055AA; color: white; text-align: center; padding: 10px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; margin-top: 8px; }
+        .del-btn { display: block; margin-top: 5px; background: #fecaca; color: #b91c1c; text-align: center; padding: 10px; border-radius: 6px; font-size: 11px; font-weight: bold; border: none; width: 100%; cursor: pointer; }
 
-        .my-location-marker { position: relative; width: 50px; height: 50px; }
+        .my-location-marker { position: relative; width: 50px; height: 50px; pointer-events: none; }
         .direction-arrow { 
             position: absolute; top: 0px; left: 15px; width: 20px; height: 25px; 
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444'%3E%3Cpath d='M12 2L22 20L12 17L2 20L12 2Z'/%3E%3C/svg%3E");
-            background-size: contain; background-repeat: no-repeat; transform-origin: center bottom;
+            background-size: contain; background-repeat: no-repeat; transform-origin: center bottom; z-index: 2; transition: transform 0.1s ease-out;
         }
         .location-dot { 
             position: absolute; top: 15px; left: 15px; width: 20px; height: 20px; 
-            background: #0055AA; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            background: #0055AA; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 3; 
         }
+
         .marker-cluster { background: rgba(0, 85, 170, 0.9); border-radius: 50%; color: white; font-weight: bold; text-align: center; }
     </style>
 </head>
@@ -87,14 +94,14 @@
     <div id="map"></div>
 
     <script>
-        var map, clusterer, cadastralLayer; // ★ 지적도 레이어 변수 추가
+        var map, clusterer, cadastralLayer;
         var watchId = null;
         var currentSites = [];
         var currentInfoWindow = null;
         var myLocMarker = null; 
         var drawnMarkers = []; 
 
-        var colorMap = { 1: "#0055AA", 2: "#EF4444", 3: "#22C55E", 4: "#F97316", 5: "#A855F7" };
+        var colorMap = { 1: "#0055AA", 2: "#EF4444", 3: "#22C55E", 4: "#F97316", 5: "#A855F7", 6: "#EC4899", 7: "#EAB308", 8: "#06B6D4", 9: "#78350F", 10: "#1F2937" };
 
         function toggleMenu() {
             var box = document.getElementById('upload-box');
@@ -115,16 +122,15 @@
             }
         }
 
-        // ★ 지적도 켜기/끄기 함수
         var isCadastralOn = false;
         function toggleCadastral() {
             var btn = document.getElementById('btn-cadastral');
             if (isCadastralOn) {
-                cadastralLayer.setMap(null); // 지도에서 제거
+                cadastralLayer.setMap(null); 
                 isCadastralOn = false;
                 btn.className = 'm-type-btn inactive';
             } else {
-                cadastralLayer.setMap(map); // 지도에 추가 (오버레이)
+                cadastralLayer.setMap(map); 
                 isCadastralOn = true;
                 btn.className = 'm-type-btn active';
             }
@@ -142,22 +148,46 @@
             map = new naver.maps.Map('map', {
                 center: new naver.maps.LatLng(35.9180, 127.1241),
                 zoom: 14,
-                disableContextMenu: true 
+                disableContextMenu: true // 네이버 자체 컨텍스트 메뉴 비활성
             });
 
-            // ★ 지적도 레이어 객체 생성
             cadastralLayer = new naver.maps.CadastralLayer();
 
             currentInfoWindow = new naver.maps.InfoWindow({
-                backgroundColor: "transparent", borderWeight: 0, disableAnchor: true, pixelOffset: new naver.maps.Point(0, -10)
+                content: "", backgroundColor: "#ffffff", borderColor: "#e1e4e8", borderWidth: 1,
+                anchorSize: new naver.maps.Size(10, 10), anchorSkew: true, anchorColor: "#ffffff",
+                pixelOffset: new naver.maps.Point(0, -10)
             });
 
             naver.maps.Event.addListener(map, 'click', function() { currentInfoWindow.close(); });
 
+            // ★ 해결책 1: 시스템 브라우저의 기본 우클릭 메뉴를 DOM 레벨에서 원천 차단
+            document.getElementById('map').addEventListener('contextmenu', function(e) {
+                e.preventDefault(); 
+            });
+
+            // PC 마우스 우클릭
             naver.maps.Event.addListener(map, 'rightclick', function(e) {
-                if(e.domEvent) { e.domEvent.preventDefault(); e.domEvent.stopPropagation(); }
                 addManualMarker(e.coord);
             });
+
+            // ★ 해결책 2: 모바일 롱클릭 직접 구현 (기본 이벤트 무시)
+            var touchTimer = null;
+            var isLongPressed = false;
+            
+            naver.maps.Event.addListener(map, 'touchstart', function(e) {
+                isLongPressed = false;
+                touchTimer = setTimeout(function() {
+                    isLongPressed = true;
+                    // 진동 지원시 햅틱 반응
+                    if(navigator.vibrate) navigator.vibrate(50);
+                    // prompt창 띄울 때 스레드 꼬임 방지
+                    setTimeout(function() { addManualMarker(e.coord); }, 50);
+                }, 700); // 0.7초 누르면 실행
+            });
+
+            naver.maps.Event.addListener(map, 'touchmove', function(e) { clearTimeout(touchTimer); });
+            naver.maps.Event.addListener(map, 'touchend', function(e) { clearTimeout(touchTimer); });
 
             var saved = localStorage.getItem('kesco_map_data');
             if(saved) { currentSites = JSON.parse(saved); drawMarkers(); }
@@ -225,7 +255,7 @@
                 navigator.geolocation.clearWatch(watchId); watchId = null;
                 if(myLocMarker) { myLocMarker.setMap(null); myLocMarker = null; }
                 this.innerText = "📡 위치 표기 시작";
-                this.style.background = "#f0f7ff";
+                this.style.background = "#f0f7ff"; this.style.color = "#0055AA";
             } else {
                 if(navigator.geolocation) {
                     watchId = navigator.geolocation.watchPosition(function(pos) {
@@ -248,39 +278,97 @@
             if(clusterer) clusterer.setMap(null);
             drawnMarkers.forEach(m => m.setMap(null));
             drawnMarkers = [];
+            if(currentInfoWindow.getMap()) currentInfoWindow.close();
 
-            currentSites.forEach(function(item) {
-                var mColor = colorMap[item.colorCode] || "#0055AA";
+            var groups = {};
+            currentSites.forEach(function(s) {
+                var key = s.lat.toFixed(6) + "," + s.lng.toFixed(6);
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(s);
+            });
+
+            Object.values(groups).forEach(function(group) {
+                var first = group[0];
+                var mColor = colorMap[first.colorCode] || "#0055AA";
+                
+                var iconContent = [
+                    `<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">`,
+                    `<path d="M15 0C6.716 0 0 6.716 0 15c0 11.25 15 25 15 25s15-13.75 15-25c0-8.284-6.716-15-15-15z" fill="${mColor}"/>`,
+                    `<circle cx="15" cy="15" r="6" fill="white"/></svg>`
+                ].join('');
+
                 var marker = new naver.maps.Marker({
-                    position: new naver.maps.LatLng(item.lat, item.lng),
+                    position: new naver.maps.LatLng(first.lat, first.lng),
                     map: map,
-                    icon: {
-                        content: `<svg width="30" height="40" viewBox="0 0 30 40"><path d="M15 0C6.7 0 0 6.7 0 15c0 11.2 15 25 15 25s15-13.8 15-25c0-8.3-6.7-15-15-15z" fill="${mColor}"/><circle cx="15" cy="15" r="6" fill="white"/></svg>`,
-                        anchor: new naver.maps.Point(15, 40)
-                    }
+                    icon: { content: iconContent, size: new naver.maps.Size(30, 40), anchor: new naver.maps.Point(15, 40) }
                 });
 
-                var content = document.createElement('div');
-                content.className = 'iw-container';
-                content.innerHTML = `
-                    <div class="iw-header" style="color:${mColor}">${item.title}</div>
-                    <div style="font-size:12px; color:#666; margin-bottom:8px;">${item.addr}</div>
-                    ${item.memo ? `<div class="memo-text">📝 ${item.memo}</div>` : ''}
-                    <a href="nmap://route/car?dlat=${item.lat}&dlng=${item.lng}&dname=${encodeURIComponent(item.title)}&appname=kesco_map" class="nav-btn">🚗 네이버 내비 실행</a>
-                    <button class="del-btn" onclick="deleteSite(${item.id})">삭제</button>
-                `;
+                // ★ 누락되었던 부재(absent) 추가 기능 및 요소를 원상 복구합니다.
+                var container = document.createElement('div');
+                container.className = 'iw-container';
+                container.style.padding = '15px'; container.style.borderRadius = '12px';
 
-                content.querySelector('.nav-btn').onclick = function(e) {
-                    var start = Date.now();
-                    setTimeout(function() {
-                        if (Date.now() - start < 1500) { 
-                            window.location.href = `https://map.naver.com/p/directions/-/${item.lng},${item.lat},${encodeURIComponent(item.title)}/-/car`;
+                var headerText = group.length > 1 ? `<b>${first.title}</b> 외 ${group.length - 1}건` : `<b>${first.title}</b>`;
+                var header = document.createElement('div');
+                header.className = 'iw-header';
+                header.style.borderBottom = `2px solid ${mColor}`; header.style.color = mColor;
+                header.innerHTML = headerText;
+                container.appendChild(header);
+
+                var listArea = document.createElement('div');
+                listArea.className = 'iw-list-area';
+                
+                group.forEach(function(item) {
+                    var itemDiv = document.createElement('div');
+                    itemDiv.className = 'iw-item';
+                    itemDiv.innerHTML = `<div style="font-weight:bold; font-size:13px; color:#333;">${item.title}</div><div style="font-size:11px; color:#666;">${item.addr}</div>`;
+                    
+                    if(item.memo) {
+                        var mDiv = document.createElement('div');
+                        mDiv.className = 'memo-text'; mDiv.innerText = "📝 " + item.memo;
+                        itemDiv.appendChild(mDiv);
+                    }
+
+                    // 1. 부재 체크박스 복구
+                    var absentRow = document.createElement('label');
+                    absentRow.className = 'absent-row';
+                    var checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox'; checkbox.checked = item.isAbsent || false;
+                    checkbox.onchange = function() { 
+                        item.isAbsent = checkbox.checked; 
+                        localStorage.setItem('kesco_map_data', JSON.stringify(currentSites)); 
+                    };
+                    absentRow.appendChild(checkbox);
+                    absentRow.appendChild(document.createTextNode(' 미점검 (부재)'));
+                    itemDiv.appendChild(absentRow);
+
+                    // 2. 네이버 길찾기 (정상 작동 확인된 /p/ 구조 유지)
+                    var navA = document.createElement('a');
+                    navA.className = 'nav-btn';
+                    var encodedTitle = encodeURIComponent(item.title);
+                    navA.href = `https://map.naver.com/p/directions/-/${item.lng},${item.lat},${encodedTitle}/-/car`;
+                    navA.target = "_blank";
+                    navA.innerText = "🚗 네이버 내비 실행";
+                    itemDiv.appendChild(navA);
+
+                    // 3. 삭제 버튼
+                    var dBtn = document.createElement('button');
+                    dBtn.className = 'del-btn'; dBtn.innerText = '점검완료 및 삭제';
+                    dBtn.onclick = function() {
+                        if(confirm(`'${item.title}' 삭제하시겠습니까?`)) {
+                            currentSites = currentSites.filter(function(s) { return s.id !== item.id; });
+                            currentInfoWindow.close();
+                            saveAndRender();
                         }
-                    }, 1000);
-                };
+                    };
+                    itemDiv.appendChild(dBtn);
+                    listArea.appendChild(itemDiv);
+                });
+                
+                container.appendChild(listArea);
 
                 naver.maps.Event.addListener(marker, 'click', function() {
-                    currentInfoWindow.setContent(content);
+                    currentInfoWindow.setContent(container);
                     currentInfoWindow.open(map, marker);
                 });
                 drawnMarkers.push(marker);
@@ -290,13 +378,6 @@
                 clusterer = new MarkerClustering({ minClusterSize: 2, map: map, markers: drawnMarkers, disableClickZoom: false, gridSize: 100 });
             }
         }
-
-        window.deleteSite = function(id) {
-            if(confirm("삭제하시겠습니까?")) {
-                currentSites = currentSites.filter(s => s.id !== id);
-                currentInfoWindow.close(); saveAndRender();
-            }
-        };
 
         function saveAndRender() {
             localStorage.setItem('kesco_map_data', JSON.stringify(currentSites));
