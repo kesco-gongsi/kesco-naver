@@ -59,6 +59,24 @@
         .my-location-marker { position: relative; width: 50px; height: 50px; pointer-events: none; }
         .direction-arrow { position: absolute; top: 0px; left: 15px; width: 20px; height: 25px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444'%3E%3Cpath d='M12 2L22 20L12 17L2 20L12 2Z'/%3E%3C/svg%3E"); background-size: contain; background-repeat: no-repeat; background-position: center; transform-origin: center bottom; z-index: 2; transition: transform 0.1s ease-out; }
         .location-dot { position: absolute; top: 15px; left: 15px; width: 20px; height: 20px; background: #0055AA; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 3; }
+
+        /* 롱프레스 피드백 리플 */
+        #longpress-ripple {
+            position: absolute;
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            background: rgba(0, 85, 170, 0.25);
+            border: 2px solid rgba(0, 85, 170, 0.5);
+            transform: translate(-50%, -50%) scale(0);
+            pointer-events: none;
+            z-index: 1000;
+            transition: transform 0.6s ease-out, opacity 0.6s ease-out;
+            opacity: 0;
+        }
+        #longpress-ripple.active {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -88,6 +106,10 @@
             <div id="status">지도를 길게 눌러 핀 추가</div>
         </div>
     </div>
+
+    <!-- 롱프레스 리플 피드백 -->
+    <div id="longpress-ripple"></div>
+
     <div id="map"></div>
 
     <script>
@@ -106,7 +128,7 @@
         var myLocMarker = null;
         var isDistrictOn = false;
         var isAbsoluteOrientation = false;
-        var renderedMarkers = []; // 네이버 클러스터링을 위한 배열
+        var renderedMarkers = [];
 
         var colorMap = { 1: "#0055AA", 2: "#EF4444", 3: "#22C55E", 4: "#F97316", 5: "#A855F7", 6: "#EC4899", 7: "#EAB308", 8: "#06B6D4", 9: "#78350F", 10: "#1F2937" };
 
@@ -140,11 +162,10 @@
             }
         }
 
-        // 지도 초기화 로직
         window.onload = function() {
             map = new naver.maps.Map('map', { 
                 center: new naver.maps.LatLng(35.9180, 127.1241), 
-                zoom: 12, // 카카오 레벨 8과 유사한 네이버 줌 레벨
+                zoom: 12,
                 mapTypeControl: false,
                 scaleControl: true,
                 logoControl: true
@@ -157,7 +178,7 @@
                 pixelOffset: new naver.maps.Point(0, -10)
             });
 
-            // 지도 우클릭 수동 마커 추가
+            // PC 우클릭 마커 추가
             naver.maps.Event.addListener(map, 'rightclick', function(e) { 
                 addManualMarker(e.coord); 
             });
@@ -166,6 +187,88 @@
             naver.maps.Event.addListener(map, 'click', function() { 
                 if (currentInfoWindow.getMap()) currentInfoWindow.close(); 
             });
+
+            // =============================================
+            // 📱 모바일 롱프레스 마커 추가
+            // =============================================
+            var mapDiv = document.getElementById('map');
+            var rippleEl = document.getElementById('longpress-ripple');
+            var lpTimer = null;
+            var lpMoved = false;
+            var lpStartX, lpStartY;
+            var LONG_PRESS_DURATION = 600; // ms
+            var MOVE_THRESHOLD = 8; // px
+
+            function showRipple(x, y) {
+                rippleEl.style.left = x + 'px';
+                rippleEl.style.top = y + 'px';
+                rippleEl.classList.add('active');
+            }
+
+            function hideRipple() {
+                rippleEl.classList.remove('active');
+            }
+
+            mapDiv.addEventListener('touchstart', function(e) {
+                // 멀티터치(핀치줌 등)는 무시
+                if (e.touches.length > 1) {
+                    clearTimeout(lpTimer);
+                    hideRipple();
+                    return;
+                }
+
+                lpMoved = false;
+                lpStartX = e.touches[0].clientX;
+                lpStartY = e.touches[0].clientY;
+
+                showRipple(lpStartX, lpStartY);
+
+                lpTimer = setTimeout(function() {
+                    if (lpMoved) return;
+
+                    // 터치 픽셀 좌표 → 지도 좌표 변환
+                    var proj = map.getProjection();
+                    var mapRect = mapDiv.getBoundingClientRect();
+                    var offsetX = lpStartX - mapRect.left;
+                    var offsetY = lpStartY - mapRect.top;
+                    var coord = proj.fromOffsetToCoord(new naver.maps.Point(offsetX, offsetY));
+
+                    // 햅틱 피드백 (지원 기기)
+                    if (navigator.vibrate) navigator.vibrate(50);
+
+                    hideRipple();
+                    addManualMarker(coord);
+                }, LONG_PRESS_DURATION);
+
+            }, { passive: true });
+
+            mapDiv.addEventListener('touchmove', function(e) {
+                if (e.touches.length > 1) {
+                    clearTimeout(lpTimer);
+                    hideRipple();
+                    lpMoved = true;
+                    return;
+                }
+                var dx = Math.abs(e.touches[0].clientX - lpStartX);
+                var dy = Math.abs(e.touches[0].clientY - lpStartY);
+                if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+                    lpMoved = true;
+                    clearTimeout(lpTimer);
+                    hideRipple();
+                }
+            }, { passive: true });
+
+            mapDiv.addEventListener('touchend', function() {
+                clearTimeout(lpTimer);
+                hideRipple();
+            }, { passive: true });
+
+            mapDiv.addEventListener('touchcancel', function() {
+                clearTimeout(lpTimer);
+                hideRipple();
+                lpMoved = true;
+            }, { passive: true });
+            // =============================================
 
             var saved = localStorage.getItem('kesco_map_data');
             if(saved) { currentSites = JSON.parse(saved); drawMarkers(); }
@@ -256,7 +359,7 @@
                     
                     saveAndRender();
                     map.setCenter(new naver.maps.LatLng(foundList[0].lat, foundList[0].lng));
-                    map.setZoom(17); // 현장이 잘 보이도록 확대 (카카오 2와 유사)
+                    map.setZoom(17);
                     
                     if (refPoint) {
                         statusEl.innerText = "현재 위치 기반 최단거리 조회 성공!";
@@ -298,7 +401,7 @@
             });
         }
 
-        // 엑셀 업로드 (네이버 지오코더 사용)
+        // 엑셀 업로드
         document.getElementById('upload-btn').onclick = function() {
             var file = document.getElementById('excel-file').files[0];
             if(!file) return alert("파일을 선택해주세요.");
@@ -376,7 +479,6 @@
         };
 
         function drawMarkers() {
-            // 이전 마커/클러스터 초기화
             if (clusterer) { clusterer.setMap(null); }
             renderedMarkers.forEach(function(m) { m.setMap(null); });
             renderedMarkers = [];
@@ -425,7 +527,6 @@
                     };
                     absentRow.appendChild(checkbox); absentRow.appendChild(document.createTextNode(' 미점검 (부재)')); itemDiv.appendChild(absentRow);
 
-                    // 네이버 길찾기 & 거리뷰 링크로 변경
                     var btnGroup = document.createElement('div'); btnGroup.className = 'btn-group';
                     var navA = document.createElement('a'); navA.className = 'nav-btn';
                     navA.href = `https://map.naver.com/v5/directions/-/${item.lng},${item.lat},${encodeURIComponent(item.title)}/-/car`; navA.target = "_blank"; navA.innerText = "🚗 길찾기";
@@ -453,7 +554,6 @@
                 return m;
             });
 
-            // 네이버 클러스터링 적용
             var htmlMarker = {
                 content: '<div style="cursor:pointer;width:40px;height:40px;line-height:42px;font-size:13px;color:white;text-align:center;font-weight:bold;background:rgba(0,85,170,0.9);border-radius:20px;box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
                 size: new naver.maps.Size(40, 40),
