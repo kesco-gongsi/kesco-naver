@@ -48,19 +48,17 @@
         .input-group { display: flex; gap: 5px; margin-bottom: 15px; }
         .input-group input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; text-transform: uppercase; }
 
-        /* 필터 패널 */
         .filter-section { margin-bottom: 12px; }
-        .filter-section-title { font-size: 12px; font-weight: bold; color: #555; margin-bottom: 6px; }
+        .filter-section-title { font-size: 12px; font-weight: bold; color: #555; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
         .filter-chips { display: flex; flex-wrap: wrap; gap: 5px; }
         .filter-chip { padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: bold; cursor: pointer; border: 2px solid transparent; transition: 0.15s; opacity: 0.4; }
         .filter-chip.on { opacity: 1; border-color: rgba(0,0,0,0.25); }
         .filter-chip-absent { padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: bold; cursor: pointer; border: 2px solid #ddd; transition: 0.15s; background: white; color: #ef4444; }
         .filter-chip-absent.on { background: #fecaca; border-color: #ef4444; }
         
-        .filter-chip-type { padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: bold; cursor: pointer; border: 2px solid #ddd; transition: 0.15s; background: white; color: #0055AA; }
+        .filter-chip-type { flex: 1; text-align: center; padding: 6px 4px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; border: 1px solid #ddd; transition: 0.15s; background: white; color: #0055AA; word-break: keep-all; }
         .filter-chip-type.on { background: #e0f2fe; border-color: #0055AA; }
 
-        /* 말풍선 */
         .iw-container { background-color: #ffffff; color: #333333; }
         .iw-item { border-bottom: 1px solid #eee; padding: 12px 0; }
         .iw-item:last-child { border-bottom: none; }
@@ -101,10 +99,10 @@
             <button id="btn-district" class="m-type-btn inactive" onclick="toggleDistrict()">지적편집도</button>
         </div>
 
-        <h3>📊 점검 지도 ver.11</h3>
+        <h3>📊 점검 지도 ver.12</h3>
         <div id="menu-content">
 
-            <div style="font-size:13px;font-weight:bold;margin-bottom:5px;color:#333;">⚡ 인입주(전주) 단일 검색</div>
+            <div style="font-size:13px;font-weight:bold;margin-bottom:5px;color:#333;">⚡ 인입주 단일 검색</div>
             <div class="input-group">
                 <input type="text" id="pole-input" placeholder="인입주번호 8자리 입력" maxlength="8">
             </div>
@@ -113,18 +111,24 @@
             <hr class="section-divider">
 
             <div style="font-size:13px;font-weight:bold;margin-bottom:8px;color:#333;">🔽 마커 필터링</div>
-            <div class="filter-section">
-                <div class="filter-section-title">색상 코드</div>
-                <div class="filter-chips" id="color-filter-chips"></div>
-            </div>
             
             <div class="filter-section">
-                <div class="filter-section-title">조회 방식 (아이콘 구분)</div>
-                <div class="filter-chips">
-                    <div class="filter-chip-type on" id="filter-type-all" onclick="toggleSearchTypeFilter('all')">전체</div>
-                    <div class="filter-chip-type" id="filter-type-address" onclick="toggleSearchTypeFilter('address')">💧 주소로 보기</div>
-                    <div class="filter-chip-type" id="filter-type-pole" onclick="toggleSearchTypeFilter('pole')">💎 인입주로 보기</div>
+                <div class="filter-section-title">
+                    <span>조회 방식 (아이콘 구분)</span>
                 </div>
+                <div class="filter-chips" style="display:flex; gap:4px;">
+                    <div class="filter-chip-type on" id="filter-type-mixed" onclick="toggleSearchTypeFilter('mixed')">주소 우선<br><span style="font-size:9px;font-weight:normal;">(실패시 인입주)</span></div>
+                    <div class="filter-chip-type" id="filter-type-address" onclick="toggleSearchTypeFilter('address')">💧<br>주소만 보기</div>
+                    <div class="filter-chip-type" id="filter-type-pole" onclick="toggleSearchTypeFilter('pole')">💎<br>인입주만 보기</div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="filter-section-title">
+                    <span>색상 코드</span>
+                    <span style="color:#0055AA; cursor:pointer;" onclick="toggleAllColors()">🔄 전체선택/해제</span>
+                </div>
+                <div class="filter-chips" id="color-filter-chips"></div>
             </div>
 
             <div class="filter-section">
@@ -139,7 +143,7 @@
             <hr class="section-divider">
 
             <input type="file" id="excel-file" accept=".xlsx,.xls" style="font-size:12px;margin-bottom:15px;width:100%;">
-            <div style="font-size:10px; color:#666; margin-top:-10px; margin-bottom:10px;">(형식: A열 상호, B열 주소, C열 색상숫자, <b>D열 인입주번호</b>)</div>
+            <div style="font-size:10px; color:#666; margin-top:-10px; margin-bottom:10px;">(형식: A열 상호, B열 주소, C열 색상, <b style="color:#0055AA;">D열 인입주번호</b>)</div>
             
             <button id="upload-btn" class="btn">📍 엑셀 데이터 표출</button>
             <button id="track-btn" class="btn">📡 위치 표기 시작</button>
@@ -149,7 +153,7 @@
             
             <div id="failed-section">
                 <button class="btn" style="background:#fee2e2; color:#b91c1c; border:1px solid #ef4444; margin-bottom:0;" onclick="toggleFailedList()">
-                    ❌ 조회 실패: <span id="fail-count">0</span>건 확인해보기
+                    ❌ 데이터 누락/실패: <span id="fail-count">0</span>건 확인
                 </button>
                 <div id="failed-list-content"></div>
             </div>
@@ -167,8 +171,9 @@
 
         var map, clusterer, cadastralLayer;
         var watchId = null;
-        var currentSites = [];
-        var failedList = []; // 조회 실패 리스트 저장
+        
+        // 데이터 구조: { id, title, addrText, colorCode, poleNum, addrLatLng: {lat,lng,addrStr}, poleLatLng: {lat,lng,addrStr}, isAbsent, memo }
+        var currentSites = []; 
         var currentInfoWindow = null;
         var myLocMarker = null;
         var isDistrictOn = false;
@@ -179,7 +184,7 @@
         // 필터 상태
         var activeColorFilters = new Set([1,2,3,4,5,6,7,8,9,10]);
         var absentFilter = 'all';
-        var searchTypeFilter = 'all'; // 'all' | 'address' | 'pole'
+        var searchTypeFilter = 'mixed'; // 'mixed' | 'address' | 'pole'
 
         var colorMap = { 1:"#0055AA", 2:"#EF4444", 3:"#22C55E", 4:"#F97316", 5:"#A855F7", 6:"#EC4899", 7:"#EAB308", 8:"#06B6D4", 9:"#78350F", 10:"#1F2937" };
 
@@ -206,6 +211,17 @@
             drawMarkers();
         }
 
+        function toggleAllColors() {
+            if (activeColorFilters.size === 10) {
+                activeColorFilters.clear();
+                document.querySelectorAll('#color-filter-chips .filter-chip').forEach(el => el.classList.remove('on'));
+            } else {
+                for(var i=1; i<=10; i++) activeColorFilters.add(i);
+                document.querySelectorAll('#color-filter-chips .filter-chip').forEach(el => el.classList.add('on'));
+            }
+            drawMarkers();
+        }
+
         function toggleAbsentFilter(val) {
             absentFilter = val;
             ['all','yes','no'].forEach(function(v) {
@@ -217,21 +233,38 @@
 
         function toggleSearchTypeFilter(val) {
             searchTypeFilter = val;
-            ['all','address','pole'].forEach(function(v) {
+            ['mixed','address','pole'].forEach(function(v) {
                 var el = document.getElementById('filter-type-' + v);
                 if (v === val) el.classList.add('on'); else el.classList.remove('on');
             });
             drawMarkers();
         }
 
+        // 현재 뷰어 모드에 맞춰 유효한 마커만 뽑아냄
         function getFilteredSites() {
-            return currentSites.filter(function(s) {
+            var results = [];
+            currentSites.forEach(function(s) {
                 var colorOk = activeColorFilters.has(s.colorCode || 1);
                 var absentOk = absentFilter === 'all' || (absentFilter === 'yes' && s.isAbsent) || (absentFilter === 'no' && !s.isAbsent);
-                var sType = s.searchType || 'address'; // 하위호환
-                var typeOk = searchTypeFilter === 'all' || sType === searchTypeFilter;
-                return colorOk && absentOk && typeOk;
+                if (!colorOk || !absentOk) return;
+
+                var activeData = null;
+                
+                if (searchTypeFilter === 'mixed') {
+                    // 주소가 있으면 주소 띄우고, 없으면 인입주 띄움
+                    if (s.addrLatLng) activeData = { ...s, lat: s.addrLatLng.lat, lng: s.addrLatLng.lng, addr: s.addrLatLng.addrStr, viewMode: 'address' };
+                    else if (s.poleLatLng) activeData = { ...s, lat: s.poleLatLng.lat, lng: s.poleLatLng.lng, addr: s.poleLatLng.addrStr, viewMode: 'pole' };
+                } 
+                else if (searchTypeFilter === 'address') {
+                    if (s.addrLatLng) activeData = { ...s, lat: s.addrLatLng.lat, lng: s.addrLatLng.lng, addr: s.addrLatLng.addrStr, viewMode: 'address' };
+                } 
+                else if (searchTypeFilter === 'pole') {
+                    if (s.poleLatLng) activeData = { ...s, lat: s.poleLatLng.lat, lng: s.poleLatLng.lng, addr: s.poleLatLng.addrStr, viewMode: 'pole' };
+                }
+
+                if (activeData) results.push(activeData);
             });
+            return results;
         }
 
         function toggleMenu() {
@@ -251,17 +284,29 @@
             var countSpan = document.getElementById('fail-count');
             var contentDiv = document.getElementById('failed-list-content');
 
-            if (!failedList || failedList.length === 0) {
+            var fails = [];
+            currentSites.forEach(s => {
+                // 둘 다 없는 경우 (아예 표출 불가)
+                if (!s.addrLatLng && !s.poleLatLng) {
+                    fails.push({ ...s, reason: "주소/인입주 모두 인식 불가" });
+                } 
+                // 혼합뷰 기준으로 주소가 실패해서 인입주로 대체된 경우도 안내
+                else if (!s.addrLatLng && s.poleLatLng) {
+                    fails.push({ ...s, reason: "주소 미흡 (인입주 위치로 자동 대체됨)" });
+                }
+            });
+
+            if (fails.length === 0) {
                 section.style.display = 'none';
                 return;
             }
             section.style.display = 'block';
-            countSpan.innerText = failedList.length;
-            contentDiv.innerHTML = failedList.map(f =>
+            countSpan.innerText = fails.length;
+            contentDiv.innerHTML = fails.map(f =>
                 `<div class="failed-item">
-                    <b>${f.title}</b><br>
-                    <span style="color:#666;">주소: ${f.addr || '없음'}</span><br>
-                    <span style="color:#b91c1c;">인입주: ${f.pole || '없음'}</span>
+                    <b>${f.title}</b> <span style="color:#b91c1c; font-weight:bold;">[${f.reason}]</span><br>
+                    <span style="color:#666;">입력주소: ${f.addrText || '없음'}</span><br>
+                    <span style="color:#0055AA;">입력인입주: ${f.poleNum || '없음'}</span>
                 </div>`
             ).join('');
         }
@@ -307,7 +352,6 @@
             var mapDiv = document.getElementById('map');
             var rippleEl = document.getElementById('longpress-ripple');
             var lpTimer = null, lpMoved = false, lpStartX, lpStartY;
-            var LONG_PRESS_DURATION = 600, MOVE_THRESHOLD = 8;
             function showRipple(x,y) { rippleEl.style.left=x+'px'; rippleEl.style.top=y+'px'; rippleEl.classList.add('active'); }
             function hideRipple() { rippleEl.classList.remove('active'); }
             mapDiv.addEventListener('touchstart', function(e) {
@@ -321,21 +365,29 @@
                     var coord = proj.fromOffsetToCoord(new naver.maps.Point(lpStartX-mapRect.left, lpStartY-mapRect.top));
                     if (navigator.vibrate) navigator.vibrate(50);
                     hideRipple(); addManualMarker(coord);
-                }, LONG_PRESS_DURATION);
+                }, 600);
             }, { passive: true });
             mapDiv.addEventListener('touchmove', function(e) {
                 if (e.touches.length > 1) { clearTimeout(lpTimer); hideRipple(); lpMoved = true; return; }
-                if (Math.abs(e.touches[0].clientX-lpStartX) > MOVE_THRESHOLD || Math.abs(e.touches[0].clientY-lpStartY) > MOVE_THRESHOLD) { lpMoved=true; clearTimeout(lpTimer); hideRipple(); }
+                if (Math.abs(e.touches[0].clientX-lpStartX) > 8 || Math.abs(e.touches[0].clientY-lpStartY) > 8) { lpMoved=true; clearTimeout(lpTimer); hideRipple(); }
             }, { passive: true });
             mapDiv.addEventListener('touchend', function() { clearTimeout(lpTimer); hideRipple(); }, { passive: true });
             mapDiv.addEventListener('touchcancel', function() { clearTimeout(lpTimer); hideRipple(); lpMoved=true; }, { passive: true });
 
             buildColorChips();
-            var saved = localStorage.getItem('kesco_map_data');
-            if (saved) { currentSites = JSON.parse(saved); drawMarkers(); }
             
-            var savedFailed = localStorage.getItem('kesco_map_failed');
-            if (savedFailed) { failedList = JSON.parse(savedFailed); renderFailedListUI(); }
+            var saved = localStorage.getItem('kesco_map_data');
+            if (saved) {
+                var parsed = JSON.parse(saved);
+                // 구버전 데이터가 남아있으면 충돌 방지를 위해 초기화
+                if (parsed.length > 0 && parsed[0].addrLatLng === undefined && parsed[0].lat !== undefined) {
+                    localStorage.removeItem('kesco_map_data');
+                    currentSites = [];
+                } else {
+                    currentSites = parsed; 
+                }
+                drawMarkers(); 
+            }
         };
 
         function getDistance(lat1, lon1, lat2, lon2) {
@@ -368,15 +420,26 @@
                 if (foundList.length > 0) {
                     var refPoint = null;
                     if (myLocMarker) refPoint = { lat:myLocMarker.getPosition().y, lng:myLocMarker.getPosition().x };
-                    else if (currentSites.length > 0) { var ls=currentSites[currentSites.length-1]; refPoint={lat:ls.lat,lng:ls.lng}; }
-                    
+                    else {
+                        var valids = currentSites.filter(s => s.addrLatLng || s.poleLatLng);
+                        if(valids.length > 0) {
+                            var target = valids[valids.length-1];
+                            refPoint = target.addrLatLng ? target.addrLatLng : target.poleLatLng;
+                        }
+                    }
                     if (refPoint) {
                         foundList.sort(function(a,b){ return getDistance(refPoint.lat,refPoint.lng,a.lat,a.lng)-getDistance(refPoint.lat,refPoint.lng,b.lat,b.lng); });
                         foundList = [foundList[0]];
                     }
                     foundList.forEach(function(found) {
-                        currentSites.push({ id:crypto.randomUUID(), title:"전주: "+found.meshno, lat:found.lat, lng:found.lng, addr:found.addr, colorCode:7, isAbsent:false, memo:"인입주번호 단일 검색 추가", searchType: 'pole' });
+                        currentSites.push({ 
+                            id: crypto.randomUUID(), title: "전주: " + found.meshno, addrText: found.addr, colorCode: 7, poleNum: found.meshno,
+                            addrLatLng: null, poleLatLng: { lat: found.lat, lng: found.lng, addrStr: found.addr },
+                            isAbsent: false, memo: "인입주 단일 검색 추가"
+                        });
                     });
+                    
+                    toggleSearchTypeFilter('mixed'); // 찾은 마커가 보이도록 혼합뷰로 강제 전환
                     saveAndRender();
                     map.setCenter(new naver.maps.LatLng(foundList[0].lat, foundList[0].lng));
                     map.setZoom(17);
@@ -395,120 +458,145 @@
                 var addrStr = "수동 등록 지점";
                 if (status === naver.maps.Service.Status.OK && response.v2.address)
                     addrStr = response.v2.address.jibunAddress || response.v2.address.roadAddress;
-                currentSites.push({ id:crypto.randomUUID(), title, lat:latLng.y, lng:latLng.x, addr:addrStr, colorCode:2, isAbsent:false, memo:memo||"", searchType:'address' });
+                
+                currentSites.push({ 
+                    id: crypto.randomUUID(), title: title, addrText: addrStr, colorCode: 2, poleNum: "",
+                    addrLatLng: { lat: latLng.y, lng: latLng.x, addrStr: addrStr }, poleLatLng: null,
+                    isAbsent: false, memo: memo||""
+                });
                 saveAndRender();
             });
         }
 
+        // 엑셀 업로드 (주소 검증 -> 실패시 인입주 매칭 로직)
         document.getElementById('upload-btn').onclick = function() {
             var file = document.getElementById('excel-file').files[0];
             if (!file) return alert("파일을 선택해주세요.");
             var reader = new FileReader();
-            reader.onload = function(e) {
+            
+            reader.onload = async function(e) {
                 var data = new Uint8Array(e.target.result);
                 var workbook = XLSX.read(data, { type: 'array' });
                 var json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
-                var rows = json.slice(1).filter(function(row) { return row[0] || row[1] || row[3]; });
+                // A상호, B주소, C색상, D인입주 중 하나라도 값이 있는 행만
+                var rows = json.slice(1).filter(row => row[0] || row[1] || row[3]); 
                 var total = rows.length;
                 if (total === 0) { alert("유효한 데이터가 없습니다."); return; }
                 
-                var successData = [];
-                var poleQueue = [];
-                var failData = [];
-                var completedCount = 0;
+                document.getElementById('status').innerText = `주소 변환 시작...`;
+                
+                var newSites = [];
+                for (let i = 0; i < rows.length; i++) {
+                    newSites.push({
+                        id: crypto.randomUUID(),
+                        title: rows[i][0] ? rows[i][0].toString() : '이름없음',
+                        addrText: rows[i][1] ? rows[i][1].toString().trim() : '',
+                        colorCode: rows[i][2] || 1,
+                        poleNum: rows[i][3] ? rows[i][3].toString().toUpperCase().trim() : '',
+                        addrLatLng: null,
+                        poleLatLng: null,
+                        isAbsent: false,
+                        memo: ""
+                    });
+                }
 
-                rows.forEach(function(row, idx) {
-                    setTimeout(function() {
-                        var title = row[0] ? row[0].toString() : '이름없음';
-                        var addr = row[1] ? row[1].toString().trim() : '';
-                        var colorCode = row[2] || 1;
-                        var pole = row[3] ? row[3].toString().toUpperCase().trim() : '';
-
-                        var checkAndProceed = function() {
-                            completedCount++;
-                            document.getElementById('status').innerText = `주소 변환 중... (${completedCount}/${total})`;
-                            if (completedCount === total) { processPoleQueue(successData, poleQueue, failData); }
-                        };
-
-                        if (addr) {
-                            naver.maps.Service.geocode({ query: addr }, function(status, response) {
+                // 1. 주소 지오코딩 (번지 검증 포함)
+                var geocodePromises = newSites.map((site, idx) => {
+                    return new Promise((resolve) => {
+                        if (!site.addrText) return resolve();
+                        setTimeout(() => {
+                            naver.maps.Service.geocode({ query: site.addrText }, function(status, response) {
                                 if (status === naver.maps.Service.Status.OK && response.v2 && response.v2.addresses.length > 0) {
-                                    successData.push({ id:crypto.randomUUID(), title, lat:parseFloat(response.v2.addresses[0].y), lng:parseFloat(response.v2.addresses[0].x), addr, colorCode, isAbsent:false, memo:"", searchType: 'address' });
-                                } else {
-                                    if (pole && pole.length === 8) poleQueue.push({ title, addr, colorCode, pole });
-                                    else failData.push({ title, addr, pole, reason: '주소 인식 실패 (인입주 없음)' });
+                                    var addrObj = response.v2.addresses[0];
+                                    
+                                    // 💡 엄격한 주소 검증 (번지수 JIBUN 또는 건물번호 BUILDING_NUMBER가 있어야 인정)
+                                    var isExact = false;
+                                    if (addrObj.addressElements) {
+                                        for (var k=0; k<addrObj.addressElements.length; k++) {
+                                            var t = addrObj.addressElements[k].types;
+                                            if ((t.includes('JIBUN') || t.includes('BUILDING_NUMBER')) && addrObj.addressElements[k].longName) {
+                                                isExact = true; break;
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (isExact) {
+                                        site.addrLatLng = { lat: parseFloat(addrObj.y), lng: parseFloat(addrObj.x), addrStr: site.addrText };
+                                    }
                                 }
-                                checkAndProceed();
+                                resolve();
                             });
-                        } else {
-                            if (pole && pole.length === 8) poleQueue.push({ title, addr, colorCode, pole });
-                            else failData.push({ title, addr, pole, reason: '주소/인입주 정보 없음' });
-                            checkAndProceed();
-                        }
-                    }, idx * 50);
+                        }, idx * 40);
+                    });
                 });
-            };
-            reader.readAsArrayBuffer(file);
-        };
 
-        // 실패한 주소들 중 인입주 번호가 있는 대상을 NDIS 데이터에서 대체 검색
-        async function processPoleQueue(successData, poleQueue, failData) {
-            if (poleQueue.length === 0) {
-                finalizeUpload(successData, failData);
-                return;
-            }
-            document.getElementById('status').innerText = `인입주 번호 대체 검색 중... (총 ${poleQueue.length}건)`;
-            
-            var prefixes = [...new Set(poleQueue.map(item => item.pole.substring(0,4)))];
-            var poleDict = {};
+                await Promise.all(geocodePromises);
+                document.getElementById('status').innerText = `인입주 백업 정보 다운로드 중...`;
 
-            for (let i=0; i<prefixes.length; i++) {
-                let prefix = prefixes[i];
-                let url = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${prefix}.csv?t=${new Date().getTime()}`;
-                try {
-                    let res = await fetch(url);
-                    if (res.ok) {
-                        let text = await res.text();
-                        let lines = text.trim().split('\n');
-                        for(let j=1; j<lines.length; j++) {
-                            let cols = lines[j].split(',');
-                            if (cols.length >= 4 && cols[0]) {
-                                let pNum = cols[0].trim().toUpperCase();
-                                let lngVal = parseFloat(cols[2]);
-                                let latVal = parseFloat(cols[3]);
-                                if (!isNaN(latVal) && !isNaN(lngVal)) {
-                                    poleDict[pNum] = { lat: latVal, lng: lngVal, addr: cols[1] ? cols[1].trim() : "NDIS 주소 없음" };
+                // 2. 인입주 정보 매칭 (주소가 정상이라도, 인입주 번호가 있으면 무조건 백그라운드에 좌표를 구해둠 -> 나중에 "인입주만 보기" 대응)
+                var polePrefixes = [...new Set(newSites.filter(s => s.poleNum && s.poleNum.length === 8).map(s => s.poleNum.substring(0,4)))];
+                var poleDict = {}; 
+
+                for (let i=0; i<polePrefixes.length; i++) {
+                    let prefix = polePrefixes[i];
+                    let url = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${prefix}.csv?t=${new Date().getTime()}`;
+                    try {
+                        let res = await fetch(url);
+                        if (res.ok) {
+                            let text = await res.text();
+                            let lines = text.trim().split('\n');
+                            for(let j=1; j<lines.length; j++) {
+                                let cols = lines[j].split(',');
+                                if (cols.length >= 4 && cols[0]) {
+                                    let pNum = cols[0].trim().toUpperCase();
+                                    let lngVal = parseFloat(cols[2]); let latVal = parseFloat(cols[3]);
+                                    if (!isNaN(latVal) && !isNaN(lngVal)) {
+                                        if(!poleDict[pNum]) poleDict[pNum] = [];
+                                        poleDict[pNum].push({ lat: latVal, lng: lngVal, addr: cols[1] ? cols[1].trim() : "NDIS 주소 없음" });
+                                    }
                                 }
                             }
                         }
-                    }
-                } catch(e) { console.error('CSV Fetch Error:', e); }
-            }
-
-            poleQueue.forEach(item => {
-                if (poleDict[item.pole]) {
-                    successData.push({
-                        id: crypto.randomUUID(), title: item.title,
-                        lat: poleDict[item.pole].lat, lng: poleDict[item.pole].lng,
-                        addr: item.addr || poleDict[item.pole].addr,
-                        colorCode: item.colorCode, isAbsent: false, memo: `[인입주 대체검색] ${item.pole}`, searchType: 'pole'
-                    });
-                } else {
-                    failData.push({ title: item.title, addr: item.addr, pole: item.pole, reason: 'NDIS 데이터 없음' });
+                    } catch(e) {}
                 }
-            });
 
-            finalizeUpload(successData, failData);
-        }
+                // 가장 가까운 인입주를 찾기 위한 기준점 마련
+                var refPoint = null;
+                if (myLocMarker) refPoint = { lat: myLocMarker.getPosition().y, lng: myLocMarker.getPosition().x };
+                else {
+                    var validAddrs = newSites.filter(s => s.addrLatLng);
+                    if (validAddrs.length > 0) {
+                        var sumLat = 0, sumLng = 0;
+                        validAddrs.forEach(s => { sumLat += s.addrLatLng.lat; sumLng += s.addrLatLng.lng; });
+                        refPoint = { lat: sumLat/validAddrs.length, lng: sumLng/validAddrs.length };
+                    }
+                }
 
-        function finalizeUpload(successData, failData) {
-            currentSites = successData;
-            failedList = failData;
-            saveAndRender();
-            renderFailedListUI();
-            toggleMenu();
-            document.getElementById('status').innerText = `${currentSites.length}건 지도 표시 완료`;
-        }
+                newSites.forEach(site => {
+                    if (site.poleNum && poleDict[site.poleNum] && poleDict[site.poleNum].length > 0) {
+                        var matches = poleDict[site.poleNum];
+                        if (refPoint) { // 기준점에서 가장 가까운 녀석을 골라냄
+                            matches.sort((a,b) => getDistance(refPoint.lat, refPoint.lng, a.lat, a.lng) - getDistance(refPoint.lat, refPoint.lng, b.lat, b.lng));
+                        }
+                        site.poleLatLng = { lat: matches[0].lat, lng: matches[0].lng, addrStr: matches[0].addr };
+                    }
+                });
+
+                currentSites = newSites;
+                saveAndRender();
+                
+                // 💡 화면 자동 센터링 (FitBounds)
+                var activeMarkers = getFilteredSites();
+                if (activeMarkers.length > 0) {
+                    var bounds = new naver.maps.LatLngBounds();
+                    activeMarkers.forEach(s => bounds.extend(new naver.maps.LatLng(s.lat, s.lng)));
+                    map.fitBounds(bounds, { padding: new naver.maps.Point(40, 40) });
+                }
+
+                toggleMenu();
+            };
+            reader.readAsArrayBuffer(file);
+        };
 
         function handleOrientation(event) {
             var heading = null;
@@ -554,9 +642,9 @@
             return Object.values(groups).map(function(group) {
                 var first = group[0];
                 var mColor = colorMap[first.colorCode] || "#0055AA";
-                var isPole = first.searchType === 'pole';
+                var isPole = first.viewMode === 'pole';
                 
-                // 💎 인입주 마커는 육각형 / 💧 일반 주소는 둥근 핀
+                // 💎 인입주는 육각형 / 💧 일반 주소는 물방울 핀
                 var svgPath = isPole 
                     ? `<path d="M8 0 L22 0 L30 15 L15 40 L0 15 L8 0 Z" fill="${mColor}"/><circle cx="15" cy="12" r="5" fill="white"/>` 
                     : `<path d="M15 0C6.716 0 0 6.716 0 15c0 11.25 15 25 15 25s15-13.75 15-25c0-8.284-6.716-15-15-15z" fill="${mColor}"/><circle cx="15" cy="15" r="6" fill="white"/>`;
@@ -578,7 +666,9 @@
 
                 group.forEach(function(item) {
                     var itemDiv = document.createElement('div'); itemDiv.className = 'iw-item';
-                    itemDiv.innerHTML = `<div style="font-weight:bold;font-size:13px;color:#333;">${item.title}</div><div style="font-size:11px;color:#666;">${item.addr}</div>`;
+                    
+                    var poleDisplay = item.poleNum ? `<br><span style="color:#0055AA;">[인입주] ${item.poleNum}</span>` : '';
+                    itemDiv.innerHTML = `<div style="font-weight:bold;font-size:13px;color:#333;">${item.title}</div><div style="font-size:11px;color:#666;">${item.addr}${poleDisplay}</div>`;
 
                     var memoWrap = document.createElement('div');
                     var memoDisplay = document.createElement('div');
@@ -593,12 +683,15 @@
                     var memoSaveBtn = document.createElement('button'); memoSaveBtn.className = 'memo-save-btn'; memoSaveBtn.innerText = '저장';
 
                     memoSaveBtn.onclick = function() {
-                        item.memo = memoTextarea.value.trim();
-                        memoDisplay.innerText = item.memo ? "📝 " + item.memo : "📝 메모 없음 (클릭하여 추가)";
-                        if (!item.memo) { memoDisplay.style.color='#aaa'; memoDisplay.style.background='#f9f9f9'; memoDisplay.style.borderLeftColor='#ccc'; }
-                        else { memoDisplay.style.color='#059669'; memoDisplay.style.background='#ecfdf5'; memoDisplay.style.borderLeftColor='#10b981'; }
+                        var realItem = currentSites.find(s => s.id === item.id);
+                        if(realItem) {
+                            realItem.memo = memoTextarea.value.trim();
+                            memoDisplay.innerText = realItem.memo ? "📝 " + realItem.memo : "📝 메모 없음 (클릭하여 추가)";
+                            if (!realItem.memo) { memoDisplay.style.color='#aaa'; memoDisplay.style.background='#f9f9f9'; memoDisplay.style.borderLeftColor='#ccc'; }
+                            else { memoDisplay.style.color='#059669'; memoDisplay.style.background='#ecfdf5'; memoDisplay.style.borderLeftColor='#10b981'; }
+                            saveAndRender(false); // 마커를 닫지 않게 false
+                        }
                         memoEditor.style.display = 'none'; memoDisplay.style.display = 'block';
-                        try { localStorage.setItem('kesco_map_data', JSON.stringify(currentSites)); } catch(e) {}
                     };
                     memoDisplay.onclick = function() { memoDisplay.style.display='none'; memoEditor.style.display='block'; memoTextarea.focus(); };
 
@@ -609,8 +702,8 @@
                     var absentRow = document.createElement('label'); absentRow.className = 'absent-row';
                     var checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = item.isAbsent || false;
                     checkbox.onchange = function() {
-                        item.isAbsent = checkbox.checked;
-                        try { localStorage.setItem('kesco_map_data', JSON.stringify(currentSites)); } catch(e) {}
+                        var realItem = currentSites.find(s => s.id === item.id);
+                        if (realItem) { realItem.isAbsent = checkbox.checked; saveAndRender(false); }
                     };
                     absentRow.appendChild(checkbox); absentRow.appendChild(document.createTextNode(' 미점검 (부재)')); itemDiv.appendChild(absentRow);
 
@@ -642,8 +735,7 @@
             if (clusterer) clusterer.setMap(null);
             renderedMarkers.forEach(function(m) { m.setMap(null); });
             renderedMarkers = [];
-            if (currentInfoWindow && currentInfoWindow.getMap()) currentInfoWindow.close();
-
+            
             var filtered = getFilteredSites();
             renderedMarkers = buildMarkerObjects(filtered);
 
@@ -662,23 +754,18 @@
                 renderedMarkers.forEach(function(m) { m.setMap(map); });
             }
 
-            document.getElementById('status').innerText = currentSites.length + "건 관리 중";
+            document.getElementById('status').innerText = currentSites.length + "건 원본 중 " + filtered.length + "건 표출";
+            renderFailedListUI(); // 맵 다시 그릴때마다 실패 목록 갱신
         }
 
-        function saveAndRender() {
-            try { 
-                localStorage.setItem('kesco_map_data', JSON.stringify(currentSites)); 
-                localStorage.setItem('kesco_map_failed', JSON.stringify(failedList)); 
-            } catch(e) { console.warn('저장 실패:', e); }
-            drawMarkers();
+        // reDraw: 마커 체크박스나 메모 저장 시 전체 리프레시 방지용 파라미터
+        function saveAndRender(reDraw = true) {
+            try { localStorage.setItem('kesco_map_data', JSON.stringify(currentSites)); } catch(e) {}
+            if (reDraw) drawMarkers();
         }
 
         document.getElementById('clear-btn').onclick = function() {
-            if (confirm("모든 데이터를 삭제하시겠습니까?")) { 
-                localStorage.removeItem('kesco_map_data'); 
-                localStorage.removeItem('kesco_map_failed'); 
-                location.reload(); 
-            }
+            if (confirm("모든 데이터를 삭제하시겠습니까?")) { localStorage.removeItem('kesco_map_data'); location.reload(); }
         };
     </script>
 </body>
