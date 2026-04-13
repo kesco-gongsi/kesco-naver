@@ -37,7 +37,9 @@
         .btn { width: 100%; padding: 12px; margin-bottom: 8px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; }
         #upload-btn { background: #0055AA; color: white; }
         #track-btn { background: #f0f7ff; color: #0055AA; border: 1px solid #0055AA; }
-        #pole-search-btn { background: #EAB308; color: #fff; margin-top: 5px; } 
+        #pole-search-btn { background: #EAB308; color: #fff; margin-top: 5px; }
+        #cluster-btn { background: #f0f7ff; color: #0055AA; border: 1px solid #0055AA; }
+        #cluster-btn.off { background: #fff0f0; color: #b91c1c; border: 1px solid #b91c1c; }
         #clear-btn { background: #ffffff; color: #666; border: 1px solid #ddd; margin-top: 10px; }
         #status { margin-top: 10px; font-size: 12px; color: #666; text-align: center; font-weight: bold; }
 
@@ -60,7 +62,6 @@
         .direction-arrow { position: absolute; top: 0px; left: 15px; width: 20px; height: 25px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444'%3E%3Cpath d='M12 2L22 20L12 17L2 20L12 2Z'/%3E%3C/svg%3E"); background-size: contain; background-repeat: no-repeat; background-position: center; transform-origin: center bottom; z-index: 2; transition: transform 0.1s ease-out; }
         .location-dot { position: absolute; top: 15px; left: 15px; width: 20px; height: 20px; background: #0055AA; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 3; }
 
-        /* 롱프레스 피드백 리플 */
         #longpress-ripple {
             position: absolute;
             width: 60px; height: 60px;
@@ -89,7 +90,7 @@
             <button id="btn-district" class="m-type-btn inactive" onclick="toggleDistrict()">지적편집도</button>
         </div>
 
-        <h3>📊 점검 지도 ver.7</h3>
+        <h3>📊 점검 지도 ver.8</h3>
         <div id="menu-content">
             <div style="font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #333;">⚡ 인입주(전주) 검색</div>
             <div class="input-group">
@@ -102,14 +103,13 @@
             <input type="file" id="excel-file" accept=".xlsx, .xls" style="font-size:12px; margin-bottom:15px; width: 100%;">
             <button id="upload-btn" class="btn">📍 엑셀 데이터 표출</button>
             <button id="track-btn" class="btn">📡 위치 표기 시작</button>
+            <button id="cluster-btn" class="btn">🔵 클러스터링 ON</button>
             <button id="clear-btn" class="btn">🔄 전체 초기화</button>
             <div id="status">지도를 길게 눌러 핀 추가</div>
         </div>
     </div>
 
-    <!-- 롱프레스 리플 피드백 -->
     <div id="longpress-ripple"></div>
-
     <div id="map"></div>
 
     <script>
@@ -128,6 +128,7 @@
         var myLocMarker = null;
         var isDistrictOn = false;
         var isAbsoluteOrientation = false;
+        var isClusteringOn = true;
         var renderedMarkers = [];
 
         var colorMap = { 1: "#0055AA", 2: "#EF4444", 3: "#22C55E", 4: "#F97316", 5: "#A855F7", 6: "#EC4899", 7: "#EAB308", 8: "#06B6D4", 9: "#78350F", 10: "#1F2937" };
@@ -162,6 +163,19 @@
             }
         }
 
+        // 클러스터링 토글 버튼
+        document.getElementById('cluster-btn').onclick = function() {
+            isClusteringOn = !isClusteringOn;
+            if (isClusteringOn) {
+                this.innerText = '🔵 클러스터링 ON';
+                this.classList.remove('off');
+            } else {
+                this.innerText = '⚪ 클러스터링 OFF';
+                this.classList.add('off');
+            }
+            drawMarkers();
+        };
+
         window.onload = function() {
             map = new naver.maps.Map('map', { 
                 center: new naver.maps.LatLng(35.9180, 127.1241), 
@@ -178,26 +192,22 @@
                 pixelOffset: new naver.maps.Point(0, -10)
             });
 
-            // PC 우클릭 마커 추가
             naver.maps.Event.addListener(map, 'rightclick', function(e) { 
                 addManualMarker(e.coord); 
             });
 
-            // 빈 공간 클릭 시 말풍선 닫기
             naver.maps.Event.addListener(map, 'click', function() { 
                 if (currentInfoWindow.getMap()) currentInfoWindow.close(); 
             });
 
-            // =============================================
-            // 📱 모바일 롱프레스 마커 추가
-            // =============================================
+            // 모바일 롱프레스
             var mapDiv = document.getElementById('map');
             var rippleEl = document.getElementById('longpress-ripple');
             var lpTimer = null;
             var lpMoved = false;
             var lpStartX, lpStartY;
-            var LONG_PRESS_DURATION = 600; // ms
-            var MOVE_THRESHOLD = 8; // px
+            var LONG_PRESS_DURATION = 600;
+            var MOVE_THRESHOLD = 8;
 
             function showRipple(x, y) {
                 rippleEl.style.left = x + 'px';
@@ -210,65 +220,33 @@
             }
 
             mapDiv.addEventListener('touchstart', function(e) {
-                // 멀티터치(핀치줌 등)는 무시
-                if (e.touches.length > 1) {
-                    clearTimeout(lpTimer);
-                    hideRipple();
-                    return;
-                }
-
+                if (e.touches.length > 1) { clearTimeout(lpTimer); hideRipple(); return; }
                 lpMoved = false;
                 lpStartX = e.touches[0].clientX;
                 lpStartY = e.touches[0].clientY;
-
                 showRipple(lpStartX, lpStartY);
-
                 lpTimer = setTimeout(function() {
                     if (lpMoved) return;
-
-                    // 터치 픽셀 좌표 → 지도 좌표 변환
                     var proj = map.getProjection();
                     var mapRect = mapDiv.getBoundingClientRect();
                     var offsetX = lpStartX - mapRect.left;
                     var offsetY = lpStartY - mapRect.top;
                     var coord = proj.fromOffsetToCoord(new naver.maps.Point(offsetX, offsetY));
-
-                    // 햅틱 피드백 (지원 기기)
                     if (navigator.vibrate) navigator.vibrate(50);
-
                     hideRipple();
                     addManualMarker(coord);
                 }, LONG_PRESS_DURATION);
-
             }, { passive: true });
 
             mapDiv.addEventListener('touchmove', function(e) {
-                if (e.touches.length > 1) {
-                    clearTimeout(lpTimer);
-                    hideRipple();
-                    lpMoved = true;
-                    return;
-                }
+                if (e.touches.length > 1) { clearTimeout(lpTimer); hideRipple(); lpMoved = true; return; }
                 var dx = Math.abs(e.touches[0].clientX - lpStartX);
                 var dy = Math.abs(e.touches[0].clientY - lpStartY);
-                if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
-                    lpMoved = true;
-                    clearTimeout(lpTimer);
-                    hideRipple();
-                }
+                if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) { lpMoved = true; clearTimeout(lpTimer); hideRipple(); }
             }, { passive: true });
 
-            mapDiv.addEventListener('touchend', function() {
-                clearTimeout(lpTimer);
-                hideRipple();
-            }, { passive: true });
-
-            mapDiv.addEventListener('touchcancel', function() {
-                clearTimeout(lpTimer);
-                hideRipple();
-                lpMoved = true;
-            }, { passive: true });
-            // =============================================
+            mapDiv.addEventListener('touchend', function() { clearTimeout(lpTimer); hideRipple(); }, { passive: true });
+            mapDiv.addEventListener('touchcancel', function() { clearTimeout(lpTimer); hideRipple(); lpMoved = true; }, { passive: true });
 
             var saved = localStorage.getItem('kesco_map_data');
             if(saved) { currentSites = JSON.parse(saved); drawMarkers(); }
@@ -315,13 +293,11 @@
                     if (cols[0] && cols[0].trim().toUpperCase() === poleNum) {
                         var lngVal = parseFloat(cols[2]);
                         var latVal = parseFloat(cols[3]);
-                        
                         if (!isNaN(latVal) && !isNaN(lngVal)) {
                             foundList.push({
                                 meshno: cols[0].trim(),
                                 addr: cols[1] ? cols[1].trim() : "주소 정보 없음",
-                                lng: lngVal,
-                                lat: latVal
+                                lng: lngVal, lat: latVal
                             });
                         }
                     }
@@ -329,7 +305,6 @@
 
                 if (foundList.length > 0) {
                     var refPoint = null;
-                    
                     if (myLocMarker) {
                         refPoint = { lat: myLocMarker.getPosition().y, lng: myLocMarker.getPosition().x };
                     } else if (currentSites.length > 0) {
@@ -339,22 +314,19 @@
 
                     if (refPoint) {
                         foundList.sort(function(a, b) {
-                            var distA = getDistance(refPoint.lat, refPoint.lng, a.lat, a.lng);
-                            var distB = getDistance(refPoint.lat, refPoint.lng, b.lat, b.lng);
-                            return distA - distB; 
+                            return getDistance(refPoint.lat, refPoint.lng, a.lat, a.lng) - getDistance(refPoint.lat, refPoint.lng, b.lat, b.lng);
                         });
                         foundList = [foundList[0]];
                     }
 
                     foundList.forEach(function(found) {
-                        var poleSite = {
+                        currentSites.push({
                             id: crypto.randomUUID(),
                             title: "전주: " + found.meshno,
                             lat: found.lat, lng: found.lng,
                             addr: found.addr, colorCode: 7,
                             isAbsent: false, memo: "GitHub 데이터 확인 완료"
-                        };
-                        currentSites.push(poleSite);
+                        });
                     });
                     
                     saveAndRender();
@@ -378,7 +350,6 @@
             }
         }
 
-        // 수동 마커 (네이버 지오코더 사용)
         function addManualMarker(latLng) {
             var title = prompt("📍 새로운 장소의 상호를 입력하세요:", "");
             if(!title) return;
@@ -401,7 +372,6 @@
             });
         }
 
-        // 엑셀 업로드
         document.getElementById('upload-btn').onclick = function() {
             var file = document.getElementById('excel-file').files[0];
             if(!file) return alert("파일을 선택해주세요.");
@@ -478,20 +448,15 @@
             }
         };
 
-        function drawMarkers() {
-            if (clusterer) { clusterer.setMap(null); }
-            renderedMarkers.forEach(function(m) { m.setMap(null); });
-            renderedMarkers = [];
-            if (currentInfoWindow.getMap()) currentInfoWindow.close();
-
+        function buildMarkerObjects() {
             var groups = {};
             currentSites.forEach(function(s) {
-                if (s.lat == null || s.lng == null || isNaN(s.lat) || isNaN(s.lng)) return; 
+                if (s.lat == null || s.lng == null || isNaN(s.lat) || isNaN(s.lng)) return;
                 var key = Number(s.lat).toFixed(6) + "," + Number(s.lng).toFixed(6);
                 if (!groups[key]) groups[key] = []; groups[key].push(s);
             });
 
-            renderedMarkers = Object.values(groups).map(function(group) {
+            return Object.values(groups).map(function(group) {
                 var first = group[0];
                 var mColor = colorMap[first.colorCode] || "#0055AA";
                 var imageSrc = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg"><path d="M15 0C6.716 0 0 6.716 0 15c0 11.25 15 25 15 25s15-13.75 15-25c0-8.284-6.716-15-15-15z" fill="${mColor}"/><circle cx="15" cy="15" r="6" fill="white"/></svg>`)}`;
@@ -553,6 +518,16 @@
                 });
                 return m;
             });
+        }
+
+        function drawMarkers() {
+            // 기존 마커 모두 제거
+            if (clusterer) { clusterer.setMap(null); }
+            renderedMarkers.forEach(function(m) { m.setMap(null); });
+            renderedMarkers = [];
+            if (currentInfoWindow && currentInfoWindow.getMap()) currentInfoWindow.close();
+
+            renderedMarkers = buildMarkerObjects();
 
             var htmlMarker = {
                 content: '<div style="cursor:pointer;width:40px;height:40px;line-height:42px;font-size:13px;color:white;text-align:center;font-weight:bold;background:rgba(0,85,170,0.9);border-radius:20px;box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
@@ -560,13 +535,18 @@
                 anchor: new naver.maps.Point(20, 20)
             };
 
-            clusterer = new MarkerClustering({
-                minClusterSize: 2, maxZoom: 15, map: map, markers: renderedMarkers, disableClickZoom: false, gridSize: 120,
-                icons: [htmlMarker], indexGenerator: [10, 100, 200, 500, 1000],
-                stylingFunction: function(clusterMarker, count) {
-                    clusterMarker.getElement().querySelector('div:first-child').innerText = count;
-                }
-            });
+            if (isClusteringOn) {
+                clusterer = new MarkerClustering({
+                    minClusterSize: 2, maxZoom: 15, map: map, markers: renderedMarkers,
+                    disableClickZoom: false, gridSize: 120,
+                    icons: [htmlMarker], indexGenerator: [10, 100, 200, 500, 1000],
+                    stylingFunction: function(clusterMarker, count) {
+                        clusterMarker.getElement().querySelector('div:first-child').innerText = count;
+                    }
+                });
+            } else {
+                renderedMarkers.forEach(function(m) { m.setMap(map); });
+            }
         }
 
         function saveAndRender() {
