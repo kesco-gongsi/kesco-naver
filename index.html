@@ -15,7 +15,6 @@
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f0f2f5; color: #333; }
         #map { width: 100%; height: 100vh; position: absolute; top: 0; left: 0; background-color: #f9f9f9; }
 
-        /* 🔥 스크롤 분리 및 상단 고정을 위한 Flexbox 적용 */
         #upload-box {
             position: absolute; top: 15px; left: 15px; z-index: 1001;
             background: rgba(255,255,255,0.95); color: #333;
@@ -26,13 +25,12 @@
             border: 1px solid #e1e4e8;
             box-sizing: border-box; 
             max-height: calc(100dvh - 30px);
-            display: flex; flex-direction: column; /* 자식 요소들을 세로로 정렬 */
+            display: flex; flex-direction: column;
         }
         
         #upload-box.collapsed { width: 110px; padding: 0; height: 42px; border: none; background: transparent; box-shadow: none; display: block; }
         #upload-box.collapsed h3, #upload-box.collapsed #menu-content, #upload-box.collapsed .map-type-wrapper { display: none; }
 
-        /* 상단 고정 영역 (flex-shrink: 0 속성으로 크기 축소 방지) */
         #toggle-btn { flex-shrink: 0; cursor: pointer; background: #0055AA; border: none; color: white; font-size: 13px; padding: 10px 15px; border-radius: 8px; font-weight: bold; width: 100%; }
         .map-type-wrapper { flex-shrink: 0; display: flex; gap: 5px; margin-top: 15px; margin-bottom: 5px; }
         h3 { flex-shrink: 0; margin: 10px 0 10px 0; font-size: 17px; color: #0055AA; display: flex; align-items: center; }
@@ -41,13 +39,11 @@
         .m-type-btn.active { background: #0055AA; color: white; }
         .m-type-btn.inactive { background: white; color: #0055AA; }
 
-        /* 🔥 스크롤이 발생하는 메뉴 컨텐츠 영역 */
         #menu-content { 
-            flex-grow: 1; min-height: 0; /* 독립 스크롤을 위한 핵심 속성 */
+            flex-grow: 1; min-height: 0;
             overflow-y: auto; 
             padding-right: 5px; padding-bottom: 10px;
         }
-        /* 스크롤바 디자인 */
         #menu-content::-webkit-scrollbar { width: 4px; }
         #menu-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
@@ -56,6 +52,34 @@
         #track-btn { background: #f0f7ff; color: #0055AA; border: 1px solid #0055AA; }
         #cluster-btn { background: #f0f7ff; color: #0055AA; border: 1px solid #0055AA; }
         #cluster-btn.off { background: #fff0f0; color: #b91c1c; border: 1px solid #b91c1c; }
+
+        /* 주소 라벨 토글 버튼 */
+        #label-btn { background: #f0f7ff; color: #0055AA; border: 1px solid #0055AA; }
+        #label-btn.off { background: #f5f5f5; color: #999; border: 1px solid #ccc; }
+
+        /* 지도 회전 리셋 버튼 */
+        #rotation-reset-btn {
+            position: absolute; bottom: 80px; right: 15px; z-index: 1001;
+            background: rgba(255,255,255,0.95); border: 1px solid #e1e4e8;
+            border-radius: 10px; padding: 10px 14px; cursor: pointer;
+            font-size: 13px; font-weight: bold; color: #0055AA;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none; /* 회전 시에만 표시 */
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        #rotation-reset-btn:hover { background: #0055AA; color: white; }
+
+        /* 회전 각도 표시 HUD */
+        #rotation-hud {
+            position: absolute; bottom: 130px; right: 15px; z-index: 1001;
+            background: rgba(0,85,170,0.85); color: white;
+            border-radius: 8px; padding: 6px 12px;
+            font-size: 12px; font-weight: bold;
+            display: none;
+            pointer-events: none;
+        }
+
         #clear-btn { background: #ffffff; color: #666; border: 1px solid #ddd; margin-top: 10px; }
         #status { margin-top: 10px; font-size: 12px; color: #666; text-align: center; font-weight: bold; }
 
@@ -84,6 +108,28 @@
         .rv-btn { flex: 1; display: block; background: #22C55E; color: white; text-align: center; padding: 8px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; }
         .del-btn { display: block; margin-top: 5px; background: #fecaca; color: #b91c1c; text-align: center; padding: 8px; border-radius: 6px; font-size: 11px; font-weight: bold; border: none; width: 100%; cursor: pointer; }
 
+        /* 마커 주소 라벨 스타일 */
+        .marker-label {
+            position: absolute;
+            left: 50%;
+            top: -4px;
+            transform: translate(-50%, -100%);
+            background: rgba(255,255,255,0.92);
+            color: #333;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            pointer-events: none;
+            border: 1px solid rgba(0,0,0,0.1);
+            line-height: 1.4;
+        }
+
         .my-location-marker { position: relative; width: 50px; height: 50px; pointer-events: none; }
         .direction-arrow { position: absolute; top: 0px; left: 15px; width: 20px; height: 25px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444'%3E%3Cpath d='M12 2L22 20L12 17L2 20L12 2Z'/%3E%3C/svg%3E"); background-size: contain; background-repeat: no-repeat; background-position: center; transform-origin: center bottom; z-index: 2; transition: transform 0.1s ease-out; }
         .location-dot { position: absolute; top: 15px; left: 15px; width: 20px; height: 20px; background: #0055AA; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 3; }
@@ -97,6 +143,19 @@
         #failed-list-content { display: none; max-height: 200px; overflow-y: auto; font-size: 11px; background: #fff; border: 1px solid #ddd; padding: 8px; border-radius: 6px; margin-top: 5px; }
         .failed-item { border-bottom: 1px solid #f0f0f0; padding: 6px 0; }
         .failed-item:last-child { border-bottom: none; }
+
+        /* 나침반 */
+        #compass-btn {
+            position: absolute; bottom: 160px; right: 15px; z-index: 1001;
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,0.95); border: 1px solid #e1e4e8;
+            border-radius: 50%; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            transition: all 0.3s;
+        }
+        #compass-btn:hover { background: #f0f7ff; }
     </style>
 </head>
 <body>
@@ -109,7 +168,7 @@
             <button id="btn-district" class="m-type-btn inactive" onclick="toggleDistrict()">지적편집도</button>
         </div>
 
-        <h3>📊 점검 지도 ver.13</h3>
+        <h3>📊 점검 지도 ver.14</h3>
         
         <div id="menu-content">
             <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: flex-start;">
@@ -166,6 +225,8 @@
             <button id="upload-btn" class="btn">📍 엑셀 데이터 표출</button>
             <button id="track-btn" class="btn">📡 위치 표기 시작</button>
             <button id="cluster-btn" class="btn">🔵 클러스터링 ON</button>
+            <!-- ★ 신규: 주소 라벨 표시 토글 버튼 -->
+            <button id="label-btn" class="btn">🏷️ 주소 라벨 표시 ON</button>
             <button id="clear-btn" class="btn">🔄 전체 초기화</button>
             <div id="status">지도를 길게 눌러 핀 추가</div>
             
@@ -177,6 +238,11 @@
             </div>
         </div>
     </div>
+
+    <!-- ★ 신규: 나침반/회전 리셋 버튼 -->
+    <div id="compass-btn" onclick="resetRotation()" title="지도 북쪽 정렬 (탭하여 회전 초기화)">🧭</div>
+    <div id="rotation-hud">↻ 0°</div>
+    <div id="rotation-reset-btn" onclick="resetRotation()">🔄 북쪽 정렬</div>
 
     <div id="longpress-ripple"></div>
     <div id="map"></div>
@@ -195,6 +261,7 @@
         var isDistrictOn = false;
         var isAbsoluteOrientation = false;
         var isClusteringOn = true;
+        var isLabelOn = true;          // ★ 주소 라벨 표시 여부
         var renderedMarkers = [];
 
         var activeColorFilters = new Set([1,2,3,4,5,6,7,8,9,10]);
@@ -202,7 +269,108 @@
         var searchTypeFilter = 'mixed';
         var quickSearchKeyword = ""; 
 
+        // ★ 지도 회전 관련 변수
+        var mapRotation = 0;           // 현재 회전 각도 (도)
+        var rotateStartAngle = null;   // 멀티터치 시작 각도
+        var rotateStartMapAngle = null;// 멀티터치 시작 시점의 지도 회전값
+
         var colorMap = { 1:"#0055AA", 2:"#EF4444", 3:"#22C55E", 4:"#F97316", 5:"#A855F7", 6:"#EC4899", 7:"#EAB308", 8:"#06B6D4", 9:"#78350F", 10:"#1F2937" };
+
+        // ★ 두 터치 포인트 사이의 각도 계산 (도 단위)
+        function getTouchAngle(t1, t2) {
+            var dx = t2.clientX - t1.clientX;
+            var dy = t2.clientY - t1.clientY;
+            return Math.atan2(dy, dx) * (180 / Math.PI);
+        }
+
+        // ★ 지도 회전 적용
+        function applyMapRotation(deg) {
+            mapRotation = ((deg % 360) + 360) % 360;
+            var mapDiv = document.getElementById('map');
+            // 지도 컨테이너를 CSS transform으로 회전
+            mapDiv.style.transformOrigin = '50% 50%';
+            mapDiv.style.transform = 'rotate(' + mapRotation + 'deg)';
+
+            // 나침반 아이콘 반대 방향 회전 (항상 북쪽 가리키도록)
+            var compass = document.getElementById('compass-btn');
+            compass.style.transform = 'rotate(' + (-mapRotation) + 'deg)';
+
+            // HUD 업데이트
+            var roundedDeg = Math.round(mapRotation);
+            var hud = document.getElementById('rotation-hud');
+            var resetBtn = document.getElementById('rotation-reset-btn');
+            if (roundedDeg === 0 || roundedDeg === 360) {
+                hud.style.display = 'none';
+                resetBtn.style.display = 'none';
+            } else {
+                hud.style.display = 'block';
+                hud.innerText = '↻ ' + roundedDeg + '°';
+                resetBtn.style.display = 'block';
+            }
+        }
+
+        // ★ 회전 초기화
+        function resetRotation() {
+            applyMapRotation(0);
+        }
+
+        // ★ 멀티터치 회전 이벤트 등록 (지도 위에서)
+        function setupMapRotation() {
+            var mapDiv = document.getElementById('map');
+
+            mapDiv.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 2) {
+                    // 두 손가락 터치: 회전 시작
+                    rotateStartAngle = getTouchAngle(e.touches[0], e.touches[1]);
+                    rotateStartMapAngle = mapRotation;
+                    e.stopPropagation();
+                }
+            }, { passive: true });
+
+            mapDiv.addEventListener('touchmove', function(e) {
+                if (e.touches.length === 2 && rotateStartAngle !== null) {
+                    var currentAngle = getTouchAngle(e.touches[0], e.touches[1]);
+                    var delta = currentAngle - rotateStartAngle;
+                    applyMapRotation(rotateStartMapAngle + delta);
+                    e.stopPropagation();
+                }
+            }, { passive: true });
+
+            mapDiv.addEventListener('touchend', function(e) {
+                if (e.touches.length < 2) {
+                    rotateStartAngle = null;
+                    rotateStartMapAngle = null;
+                }
+            }, { passive: true });
+
+            // 마우스 우클릭 드래그로 회전 (데스크탑)
+            var isRightDragging = false;
+            var rightDragStartX = 0;
+            var rightDragStartRotation = 0;
+
+            mapDiv.addEventListener('mousedown', function(e) {
+                if (e.button === 2) { // 우클릭
+                    isRightDragging = true;
+                    rightDragStartX = e.clientX;
+                    rightDragStartRotation = mapRotation;
+                    e.preventDefault();
+                }
+            });
+            mapDiv.addEventListener('mousemove', function(e) {
+                if (isRightDragging) {
+                    var delta = (e.clientX - rightDragStartX) * 0.5;
+                    applyMapRotation(rightDragStartRotation + delta);
+                }
+            });
+            mapDiv.addEventListener('mouseup', function(e) {
+                if (e.button === 2) isRightDragging = false;
+            });
+            mapDiv.addEventListener('mouseleave', function() { isRightDragging = false; });
+            mapDiv.addEventListener('contextmenu', function(e) {
+                // 우클릭 드래그 회전 중이면 context menu 억제
+                if (Math.abs(mapRotation - rightDragStartRotation) > 2) e.preventDefault();
+            });
+        }
 
         function buildColorChips() {
             var wrap = document.getElementById('color-filter-chips');
@@ -262,6 +430,14 @@
             drawMarkers();
         }
 
+        // ★ 주소 라벨 토글
+        document.getElementById('label-btn').onclick = function() {
+            isLabelOn = !isLabelOn;
+            this.innerText = isLabelOn ? '🏷️ 주소 라벨 표시 ON' : '🏷️ 주소 라벨 표시 OFF';
+            this.classList.toggle('off', !isLabelOn);
+            drawMarkers();
+        };
+
         function getFilteredSites() {
             var results = [];
             currentSites.forEach(function(s) {
@@ -274,22 +450,16 @@
                     var aText = (s.addrText || "").toLowerCase();
                     var aLatStr = (s.addrLatLng ? s.addrLatLng.addrStr : "").toLowerCase();
                     var pLatStr = (s.poleLatLng ? s.poleLatLng.addrStr : "").toLowerCase();
-
-                    if (!t.includes(quickSearchKeyword) && !aText.includes(quickSearchKeyword) && !aLatStr.includes(quickSearchKeyword) && !pLatStr.includes(quickSearchKeyword)) {
-                        return; 
-                    }
+                    if (!t.includes(quickSearchKeyword) && !aText.includes(quickSearchKeyword) && !aLatStr.includes(quickSearchKeyword) && !pLatStr.includes(quickSearchKeyword)) return;
                 }
 
                 var activeData = null;
-                
                 if (searchTypeFilter === 'mixed') {
                     if (s.addrLatLng) activeData = { ...s, lat: s.addrLatLng.lat, lng: s.addrLatLng.lng, addr: s.addrLatLng.addrStr, viewMode: 'address' };
                     else if (s.poleLatLng) activeData = { ...s, lat: s.poleLatLng.lat, lng: s.poleLatLng.lng, addr: s.poleLatLng.addrStr, viewMode: 'pole' };
-                } 
-                else if (searchTypeFilter === 'address') {
+                } else if (searchTypeFilter === 'address') {
                     if (s.addrLatLng) activeData = { ...s, lat: s.addrLatLng.lat, lng: s.addrLatLng.lng, addr: s.addrLatLng.addrStr, viewMode: 'address' };
-                } 
-                else if (searchTypeFilter === 'pole') {
+                } else if (searchTypeFilter === 'pole') {
                     if (s.poleLatLng) activeData = { ...s, lat: s.poleLatLng.lat, lng: s.poleLatLng.lng, addr: s.poleLatLng.addrStr, viewMode: 'pole' };
                 }
 
@@ -317,12 +487,8 @@
 
             var fails = [];
             currentSites.forEach(s => {
-                if (!s.addrLatLng && !s.poleLatLng) {
-                    fails.push({ ...s, reason: "주소/인입주 모두 인식 불가" });
-                } 
-                else if (!s.addrLatLng && s.poleLatLng) {
-                    fails.push({ ...s, reason: "주소 미흡 (인입주 자동 대체됨)" });
-                }
+                if (!s.addrLatLng && !s.poleLatLng) fails.push({ ...s, reason: "주소/인입주 모두 인식 불가" });
+                else if (!s.addrLatLng && s.poleLatLng) fails.push({ ...s, reason: "주소 미흡 (인입주 자동 대체됨)" });
             });
 
             if (fails.length === 0) { section.style.display = 'none'; return; }
@@ -370,7 +536,8 @@
                 pixelOffset: new naver.maps.Point(0,-10), zIndex: 200
             });
 
-            naver.maps.Event.addListener(map, 'rightclick', function(e) { addManualMarker(e.coord); });
+            // 기존 우클릭 이벤트를 수동 마커 추가에서 제거 (회전 드래그로 교체)
+            // naver.maps.Event.addListener(map, 'rightclick', function(e) { addManualMarker(e.coord); });
             naver.maps.Event.addListener(map, 'click', function() { if (currentInfoWindow.getMap()) currentInfoWindow.close(); });
 
             var mapDiv = document.getElementById('map');
@@ -378,8 +545,10 @@
             var lpTimer = null, lpMoved = false, lpStartX, lpStartY;
             function showRipple(x,y) { rippleEl.style.left=x+'px'; rippleEl.style.top=y+'px'; rippleEl.classList.add('active'); }
             function hideRipple() { rippleEl.classList.remove('active'); }
+
             mapDiv.addEventListener('touchstart', function(e) {
-                if (e.touches.length > 1) { clearTimeout(lpTimer); hideRipple(); return; }
+                // 멀티터치이면 롱프레스 취소 (회전 제스처)
+                if (e.touches.length > 1) { clearTimeout(lpTimer); hideRipple(); lpMoved = true; return; }
                 lpMoved = false; lpStartX = e.touches[0].clientX; lpStartY = e.touches[0].clientY;
                 showRipple(lpStartX, lpStartY);
                 lpTimer = setTimeout(function() {
@@ -397,6 +566,9 @@
             }, { passive: true });
             mapDiv.addEventListener('touchend', function() { clearTimeout(lpTimer); hideRipple(); }, { passive: true });
             mapDiv.addEventListener('touchcancel', function() { clearTimeout(lpTimer); hideRipple(); lpMoved=true; }, { passive: true });
+
+            // ★ 회전 기능 셋업
+            setupMapRotation();
 
             buildColorChips();
             
@@ -629,6 +801,20 @@
             }
         };
 
+        // ★ 주소 라벨 생성 헬퍼
+        function buildLabelHtml(labelText, color) {
+            if (!isLabelOn || !labelText) return '';
+            // 주소에서 핵심 부분만 추출 (너무 길면 줄임)
+            var short = labelText;
+            // 도로명/지번 주소에서 마지막 의미 부분만 추출
+            var parts = labelText.split(' ');
+            if (parts.length > 3) {
+                short = parts.slice(-3).join(' ');
+            }
+            if (short.length > 18) short = short.substring(0, 16) + '…';
+            return `<div class="marker-label" style="border-top: 2px solid ${color};">${short}</div>`;
+        }
+
         function buildMarkerObjects(sites) {
             var groups = {};
             sites.forEach(function(s) {
@@ -641,13 +827,31 @@
                 var first = group[0];
                 var mColor = colorMap[first.colorCode] || "#0055AA";
                 var isPole = first.viewMode === 'pole';
-                
+
+                // ★ 라벨용 텍스트: 주소 또는 상호
+                var labelText = first.addrText || first.addr || first.title || '';
+                var labelHtml = buildLabelHtml(labelText, mColor);
+
                 var svgPath = isPole 
                     ? `<path d="M8 0 L22 0 L30 15 L15 40 L0 15 L8 0 Z" fill="${mColor}"/><circle cx="15" cy="12" r="5" fill="white"/>` 
                     : `<path d="M15 0C6.716 0 0 6.716 0 15c0 11.25 15 25 15 25s15-13.75 15-25c0-8.284-6.716-15-15-15z" fill="${mColor}"/><circle cx="15" cy="15" r="6" fill="white"/>`;
 
-                var imageSrc = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">${svgPath}</svg>`)}`;
-                var m = new naver.maps.Marker({ position: new naver.maps.LatLng(first.lat, first.lng), icon: { url: imageSrc, size: new naver.maps.Size(30,40), anchor: new naver.maps.Point(15,40) } });
+                // ★ 마커 아이콘에 라벨을 포함하는 컨테이너 방식
+                var markerContent = `
+                    <div style="position:relative; display:inline-block; text-align:center;">
+                        ${labelHtml}
+                        <img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">${svgPath}</svg>`)}" 
+                             style="width:30px;height:40px;display:block;" />
+                    </div>`;
+
+                var m = new naver.maps.Marker({ 
+                    position: new naver.maps.LatLng(first.lat, first.lng), 
+                    icon: { 
+                        content: markerContent,
+                        size: new naver.maps.Size(30, isLabelOn ? 60 : 40),
+                        anchor: new naver.maps.Point(15, isLabelOn ? 60 : 40)
+                    }
+                });
 
                 var container = document.createElement('div'); container.className = 'iw-container';
                 container.style.cssText = 'padding:15px;border-radius:12px;width:240px;box-shadow:0 4px 15px rgba(0,0,0,0.15);background:#fff;';
