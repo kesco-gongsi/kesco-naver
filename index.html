@@ -85,7 +85,7 @@
         .rv-btn { flex: 1; display: block; background: #22C55E; color: white; text-align: center; padding: 8px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; }
         .del-btn { display: block; margin-top: 5px; background: #fecaca; color: #b91c1c; text-align: center; padding: 8px; border-radius: 6px; font-size: 11px; font-weight: bold; border: none; width: 100%; cursor: pointer; }
 
-        /* 마커 주소 라벨 스타일 */
+        /* 🔥 수정됨: 번지수가 짤리지 않도록 너비 확장 및 CSS 말줄임 */
         .marker-label {
             position: absolute;
             left: 50%;
@@ -93,12 +93,12 @@
             transform: translate(-50%, -100%);
             background: rgba(255,255,255,0.92);
             color: #333;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: bold;
-            padding: 2px 6px;
+            padding: 3px 6px;
             border-radius: 4px;
             white-space: nowrap;
-            max-width: 120px;
+            max-width: 160px; /* 확장된 너비 */
             overflow: hidden;
             text-overflow: ellipsis;
             box-shadow: 0 1px 4px rgba(0,0,0,0.2);
@@ -219,7 +219,7 @@
         var isDistrictOn = false;
         var isAbsoluteOrientation = false;
         var isClusteringOn = true;
-        var isLabelOn = true;          // ★ 주소 라벨 표시 여부
+        var isLabelOn = true;
         var renderedMarkers = [];
 
         var activeColorFilters = new Set([1,2,3,4,5,6,7,8,9,10]);
@@ -287,7 +287,6 @@
             drawMarkers();
         }
 
-        // ★ 주소 라벨 토글
         document.getElementById('label-btn').onclick = function() {
             isLabelOn = !isLabelOn;
             this.innerText = isLabelOn ? '🏷️ 주소 라벨 표시 ON' : '🏷️ 주소 라벨 표시 OFF';
@@ -652,17 +651,21 @@
             }
         };
 
-        // ★ 주소 라벨 생성 헬퍼
+        // 🔥 수정됨: 영문 쓰레기값 제거 및 마지막 3어절 추출 로직 적용
         function buildLabelHtml(labelText, color) {
             if (!isLabelOn || !labelText) return '';
-            // 주소에서 핵심 부분만 추출 (너무 길면 줄임)
-            var short = labelText;
-            // 도로명/지번 주소에서 마지막 의미 부분만 추출
-            var parts = labelText.split(' ');
+            
+            // 데이터 끝에 붙은 'BL', 'ri', 'r', 'R' 등 영문자와 공백만 있는 경우 제거
+            var cleanedLabel = labelText.replace(/(\s+[a-zA-Z]+)+$/g, '').trim();
+            
+            var parts = cleanedLabel.split(/\s+/);
+            var short = cleanedLabel;
+            
+            // 어절이 3개 이상일 때 마지막 3어절만 추출
             if (parts.length > 3) {
                 short = parts.slice(-3).join(' ');
             }
-            if (short.length > 18) short = short.substring(0, 16) + '…';
+            
             return `<div class="marker-label" style="border-top: 2px solid ${color};">${short}</div>`;
         }
 
@@ -679,15 +682,14 @@
                 var mColor = colorMap[first.colorCode] || "#0055AA";
                 var isPole = first.viewMode === 'pole';
 
-                // ★ 라벨용 텍스트: 주소 또는 상호
-                var labelText = first.addrText || first.addr || first.title || '';
+                // 🔥 수정됨: 시스템 변환 주소(first.addr) 최우선 적용
+                var labelText = first.addr || first.addrText || first.title || '';
                 var labelHtml = buildLabelHtml(labelText, mColor);
 
                 var svgPath = isPole 
                     ? `<path d="M8 0 L22 0 L30 15 L15 40 L0 15 L8 0 Z" fill="${mColor}"/><circle cx="15" cy="12" r="5" fill="white"/>` 
                     : `<path d="M15 0C6.716 0 0 6.716 0 15c0 11.25 15 25 15 25s15-13.75 15-25c0-8.284-6.716-15-15-15z" fill="${mColor}"/><circle cx="15" cy="15" r="6" fill="white"/>`;
 
-                // ★ 마커 아이콘에 라벨을 포함하는 컨테이너 방식
                 var markerContent = `
                     <div style="position:relative; display:inline-block; text-align:center;">
                         ${labelHtml}
@@ -695,7 +697,6 @@
                              style="width:30px;height:40px;display:block;" />
                     </div>`;
 
-                // ★ 수정된 부분: 라벨 표시 여부와 상관없이 마커 앵커를 항상 (15, 40) 고정
                 var m = new naver.maps.Marker({ 
                     position: new naver.maps.LatLng(first.lat, first.lng), 
                     icon: { 
