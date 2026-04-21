@@ -660,7 +660,8 @@ window.addEventListener('focus', function() {
                     watchId = navigator.geolocation.watchPosition(function(pos) {
                         var moveLoc = new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
                         if (!myLocMarker) {
-                            myLocMarker = new naver.maps.Marker({ position: moveLoc, map, icon: { content:'<div class="my-location-marker"><div id="direction-arrow" class="direction-arrow"></div><div class="location-dot"></div></div>', size:new naver.maps.Size(50,50), anchor:new naver.maps.Point(25,25) } });
+                            myLocMarker = new naver.maps.Marker({ position: moveLoc, map, // 수정
+icon: { content:'<div class="my-location-marker" style="pointer-events:none;"><div id="direction-arrow" class="direction-arrow"></div><div class="location-dot"></div></div>', size:new naver.maps.Size(50,50), anchor:new naver.maps.Point(25,25) } });
                             map.setCenter(moveLoc);
                         } else { myLocMarker.setPosition(moveLoc); }
                     }, null, { enableHighAccuracy: true });
