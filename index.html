@@ -144,7 +144,7 @@
         #longpress-ripple { position: absolute; width: 60px; height: 60px; border-radius: 50%; background: rgba(0,85,170,0.2); border: 2px solid rgba(0,85,170,0.45); transform: translate(-50%,-50%) scale(0); pointer-events: none; z-index: 1000; transition: transform 0.6s ease-out, opacity 0.6s ease-out; opacity: 0; }
         #longpress-ripple.active { transform: translate(-50%,-50%) scale(1); opacity: 1; }
 
-        /* 커스텀 모달 CSS 추가 */
+        /* 커스텀 모달 CSS */
         #custom-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;
@@ -166,7 +166,7 @@
         .m-btn-cancel { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
         .m-btn-save { background: var(--primary); color: #fff; }
 
-        /* 내 위치 버튼(FAB) 추가 */
+        /* 내 위치 버튼(FAB) */
         #my-loc-fab {
             position: fixed; bottom: 30px; right: 20px; z-index: 1000;
             width: 48px; height: 48px; background: #fff; border-radius: 50%;
@@ -302,7 +302,7 @@
     var searchTypeFilter = 'mixed';
     var quickSearchKeyword = "";
 
-    var pendingMarkerCoord = null; // 모달창 대기용 좌표 변수
+    var pendingMarkerCoord = null;
 
     var colorMap = {
         1:"#0055AA", 2:"#EF4444", 3:"#22C55E", 4:"#F97316",
@@ -383,7 +383,6 @@
         drawMarkers();
     };
 
-    /* ── 필터링 ── */
     function getFilteredSites() {
         var results = [];
         currentSites.forEach(function(s) {
@@ -481,17 +480,15 @@
             pixelOffset:new naver.maps.Point(0,-10), zIndex:200
         });
 
-        // 열려있는 정보창 닫기
         naver.maps.Event.addListener(map, 'click', function() {
             if (currentInfoWindow.getMap()) currentInfoWindow.close();
         });
 
-        // 💡 우클릭으로 마커 추가 이벤트 연결 (PC웹용)
         naver.maps.Event.addListener(map, 'rightclick', function(e) {
             addManualMarker(e.coord);
         });
 
-        /* 🚀 롱프레스 (모바일용) - 네이버 지도 API 네이티브 터치 이벤트 활용하여 좌표 정확도 100% 개선 */
+        /* 🚀 롱프레스 (모바일용) */
         var rippleEl = document.getElementById('longpress-ripple');
         var lpTimer = null, lpMoved = false, lpCoord = null;
 
@@ -506,15 +503,13 @@
 
         naver.maps.Event.addListener(map, 'touchstart', function(e) {
             var pe = e.pointerEvent;
-            // 두 손가락 터치 방지
             if (pe && pe.touches && pe.touches.length > 1) {
                 clearTimeout(lpTimer); hideRipple(); lpMoved = true; return;
             }
             
             lpMoved = false;
-            lpCoord = e.coord; // ✨ 핵심: 화면 픽셀 계산이 아닌 네이버지도 자체 API 위경도 좌표 저장
+            lpCoord = e.coord;
 
-            // 화면 클릭 위치(이펙트 표시용 픽셀값)
             var clientX = (pe && pe.touches) ? pe.touches[0].clientX : (pe ? pe.clientX : 0);
             var clientY = (pe && pe.touches) ? pe.touches[0].clientY : (pe ? pe.clientY : 0);
             if (clientX > 0 && clientY > 0) showRipple(clientX, clientY);
@@ -523,7 +518,7 @@
                 if (lpMoved) return;
                 if (navigator.vibrate) navigator.vibrate(50);
                 hideRipple();
-                addManualMarker(lpCoord); // 저장해둔 정확한 좌표 전달
+                addManualMarker(lpCoord);
             }, 600);
         });
 
@@ -561,7 +556,7 @@
 
     /* ── 수동 마커 추가 모달 동작 ── */
     function addManualMarker(latLng) {
-        pendingMarkerCoord = latLng; // 좌표 저장
+        pendingMarkerCoord = latLng; 
         document.getElementById('modal-input-title').value = '';
         document.getElementById('modal-input-memo').value = '';
         document.getElementById('custom-modal').style.display = 'flex';
@@ -711,13 +706,21 @@
         reader.readAsArrayBuffer(file);
     };
 
-    /* ── 방향 감지 ── */
+    /* ── 방향 감지 (화살표 활성화) ── */
     function handleOrientation(event) {
         var heading=null;
         if(event.webkitCompassHeading!==undefined) heading=event.webkitCompassHeading;
         else if(event.absolute===true&&event.alpha!==null){isAbsoluteOrientation=true;heading=360-event.alpha;}
         else if(!isAbsoluteOrientation&&event.alpha!==null) heading=360-event.alpha;
-        if(heading!==null){var arr=document.getElementById('direction-arrow');if(arr)arr.style.transform='rotate('+heading+'deg)';}
+        
+        if(heading!==null){
+            var arr=document.getElementById('direction-arrow');
+            if(arr) {
+                // 방향 센서 값이 수신되면 강제로 보여지게 처리
+                arr.style.display = 'block';
+                arr.style.transform='rotate('+heading+'deg)';
+            }
+        }
     }
 
     /* ── 실시간 위치 추적 (상단 메뉴 버튼용) ── */
@@ -750,21 +753,29 @@
         }
     };
 
-    /* ── 내 위치 즉시 이동 (우측 하단 FAB 전용) ── */
+    /* ── 내 위치 즉시 이동 (우측 하단 FAB 전용 - 속도 개선) ── */
     function focusMyLocation() {
         if (!navigator.geolocation) { alert("위치 정보가 지원되지 않는 환경입니다."); return; }
         
+        // 🚀 개선점 1: 이미 위치 추적이 켜져 있다면, 무거운 GPS 검색 없이 바로 마커 위치로 화면만 이동!
+        if (watchId && myLocMarker) {
+            map.setCenter(myLocMarker.getPosition());
+            map.setZoom(16);
+            return;
+        }
+
+        // 🚀 개선점 2: maximumAge(10초 캐시 허용), timeout(5초 타임아웃) 추가로 로딩 딜레이 최소화
         navigator.geolocation.getCurrentPosition(function(pos) {
             var loc = new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
             map.setCenter(loc);
-            map.setZoom(16); // 이동할 때 보기 좋은 줌 레벨로 고정
+            map.setZoom(16);
 
-            // 마커가 없으면 1회성으로 생성
             if(!myLocMarker){
                 myLocMarker = new naver.maps.Marker({
                     position: loc, map: map,
                     icon: {
-                        content: '<div class="my-location-marker" style="pointer-events:none;"><div id="direction-arrow" class="direction-arrow" style="display:none;"></div><div class="location-dot"></div></div>',
+                        // 화살표에서 display:none을 제거하여 센서 작동 시 정상 표시되도록 수정
+                        content: '<div class="my-location-marker" style="pointer-events:none;"><div id="direction-arrow" class="direction-arrow"></div><div class="location-dot"></div></div>',
                         size: new naver.maps.Size(50, 50), anchor: new naver.maps.Point(25, 25)
                     }
                 });
@@ -772,13 +783,12 @@
                 myLocMarker.setPosition(loc);
             }
             
-            // 만약 상단 실시간 추적이 꺼져있다면, 추적을 자동으로 켭니다 (네이버 지도 앱 방식)
             if(!watchId) {
                 document.getElementById('track-btn').click();
             }
         }, function(err) {
-            alert("위치 정보를 가져올 수 없습니다. GPS 설정이나 브라우저 권한을 확인해주세요.");
-        }, { enableHighAccuracy: true });
+            alert("위치 정보를 가져올 수 없습니다. 권한을 확인해주세요.");
+        }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
     }
 
     /* ── 라벨 생성 ── */
