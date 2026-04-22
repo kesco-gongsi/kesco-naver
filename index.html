@@ -491,30 +491,53 @@
             addManualMarker(e.coord);
         });
 
-        /* 롱프레스 (모바일용) */
-        var mapDiv=document.getElementById('map'), rippleEl=document.getElementById('longpress-ripple');
-        var lpTimer=null, lpMoved=false, lpStartX, lpStartY;
-        function showRipple(x,y){ rippleEl.style.left=x+'px'; rippleEl.style.top=y+'px'; rippleEl.classList.add('active'); }
-        function hideRipple(){ rippleEl.classList.remove('active'); }
+        /* 🚀 롱프레스 (모바일용) - 네이버 지도 API 네이티브 터치 이벤트 활용하여 좌표 정확도 100% 개선 */
+        var rippleEl = document.getElementById('longpress-ripple');
+        var lpTimer = null, lpMoved = false, lpCoord = null;
 
-        mapDiv.addEventListener('touchstart',function(e){
-            if(e.touches.length>1){clearTimeout(lpTimer);hideRipple();lpMoved=true;return;}
-            lpMoved=false; lpStartX=e.touches[0].clientX; lpStartY=e.touches[0].clientY;
-            showRipple(lpStartX,lpStartY);
-            lpTimer=setTimeout(function(){
-                if(lpMoved)return;
-                var proj=map.getProjection(), rect=mapDiv.getBoundingClientRect();
-                var coord=proj.fromOffsetToCoord(new naver.maps.Point(lpStartX-rect.left,lpStartY-rect.top));
-                if(navigator.vibrate) navigator.vibrate(50);
-                hideRipple(); addManualMarker(coord);
-            },600);
-        },{passive:true});
-        mapDiv.addEventListener('touchmove',function(e){
-            if(e.touches.length>1){clearTimeout(lpTimer);hideRipple();lpMoved=true;return;}
-            if(Math.abs(e.touches[0].clientX-lpStartX)>8||Math.abs(e.touches[0].clientY-lpStartY)>8){lpMoved=true;clearTimeout(lpTimer);hideRipple();}
-        },{passive:true});
-        mapDiv.addEventListener('touchend',  function(){clearTimeout(lpTimer);hideRipple();},{passive:true});
-        mapDiv.addEventListener('touchcancel',function(){clearTimeout(lpTimer);hideRipple();lpMoved=true;},{passive:true});
+        function showRipple(x, y) {
+            rippleEl.style.left = x + 'px';
+            rippleEl.style.top = y + 'px';
+            rippleEl.classList.add('active');
+        }
+        function hideRipple() {
+            rippleEl.classList.remove('active');
+        }
+
+        naver.maps.Event.addListener(map, 'touchstart', function(e) {
+            var pe = e.pointerEvent;
+            // 두 손가락 터치 방지
+            if (pe && pe.touches && pe.touches.length > 1) {
+                clearTimeout(lpTimer); hideRipple(); lpMoved = true; return;
+            }
+            
+            lpMoved = false;
+            lpCoord = e.coord; // ✨ 핵심: 화면 픽셀 계산이 아닌 네이버지도 자체 API 위경도 좌표 저장
+
+            // 화면 클릭 위치(이펙트 표시용 픽셀값)
+            var clientX = (pe && pe.touches) ? pe.touches[0].clientX : (pe ? pe.clientX : 0);
+            var clientY = (pe && pe.touches) ? pe.touches[0].clientY : (pe ? pe.clientY : 0);
+            if (clientX > 0 && clientY > 0) showRipple(clientX, clientY);
+
+            lpTimer = setTimeout(function() {
+                if (lpMoved) return;
+                if (navigator.vibrate) navigator.vibrate(50);
+                hideRipple();
+                addManualMarker(lpCoord); // 저장해둔 정확한 좌표 전달
+            }, 600);
+        });
+
+        naver.maps.Event.addListener(map, 'touchmove', function(e) {
+            lpMoved = true; clearTimeout(lpTimer); hideRipple();
+        });
+        
+        naver.maps.Event.addListener(map, 'touchend', function(e) {
+            clearTimeout(lpTimer); hideRipple();
+        });
+        
+        naver.maps.Event.addListener(map, 'dragstart', function(e) {
+            lpMoved = true; clearTimeout(lpTimer); hideRipple();
+        });
 
         document.addEventListener('visibilitychange',function(){
             if(document.visibilityState==='visible'&&map) setTimeout(()=>{naver.maps.Event.trigger(map,'resize');map.setCenter(map.getCenter());},100);
