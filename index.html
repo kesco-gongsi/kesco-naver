@@ -185,8 +185,8 @@
 
         <div class="map-type-wrapper">
             <button id="btn-road"     class="m-type-btn active"   onclick="setMapType('roadmap')">일반지도</button>
-            <button id="btn-sky"      class="m-type-btn inactive"  onclick="setMapType('skyview')">위성지도</button>
-            <button id="btn-district" class="m-type-btn inactive"  onclick="toggleDistrict()">지적편집도</button>
+            <button id="btn-sky"      class="m-type-btn inactive" onclick="setMapType('skyview')">위성지도</button>
+            <button id="btn-district" class="m-type-btn inactive" onclick="toggleDistrict()">지적편집도</button>
         </div>
 
         <h3>📍 공시맵 <span class="badge">3.0</span></h3>
@@ -291,12 +291,14 @@
     var watchId = null;
     var currentSites = [];
     var myLocMarker = null;
+    var renderedMarkers = [];
+
+    // --- 상태 저장용 변수들 ---
     var isDistrictOn = false;
+    var currentMapTypeId = 'roadmap';
     var isAbsoluteOrientation = false;
     var isClusteringOn = true;
     var isLabelOn = true;
-    var renderedMarkers = [];
-
     var activeColorFilters = new Set([1,2,3,4,5,6,7,8,9,10]);
     var absentFilter = 'all';
     var searchTypeFilter = 'mixed';
@@ -310,6 +312,79 @@
         9:"#78350F", 10:"#1F2937"
     };
     var ABSENT_COLOR_CODE = 5;
+
+    /* ── 설정 저장 및 불러오기 (네이버맵 방식) ── */
+    function saveSettings() {
+        var settings = {
+            isClusteringOn: isClusteringOn,
+            isLabelOn: isLabelOn,
+            isDistrictOn: isDistrictOn,
+            mapTypeId: currentMapTypeId,
+            absentFilter: absentFilter,
+            searchTypeFilter: searchTypeFilter,
+            activeColorFilters: Array.from(activeColorFilters)
+        };
+        localStorage.setItem('kesco_settings', JSON.stringify(settings));
+    }
+
+    function loadAndApplySettings() {
+        var saved = localStorage.getItem('kesco_settings');
+        if (!saved) return;
+
+        var settings = JSON.parse(saved);
+        
+        if (settings.isClusteringOn !== undefined) isClusteringOn = settings.isClusteringOn;
+        if (settings.isLabelOn !== undefined) isLabelOn = settings.isLabelOn;
+        if (settings.isDistrictOn !== undefined) isDistrictOn = settings.isDistrictOn;
+        if (settings.mapTypeId) currentMapTypeId = settings.mapTypeId;
+        if (settings.absentFilter) absentFilter = settings.absentFilter;
+        if (settings.searchTypeFilter) searchTypeFilter = settings.searchTypeFilter;
+        if (settings.activeColorFilters) activeColorFilters = new Set(settings.activeColorFilters);
+
+        // UI 텍스트 및 상태 복구
+        var labelBtn = document.getElementById('label-btn');
+        labelBtn.innerText = isLabelOn ? '🏷️ 주소 라벨 ON' : '🏷️ 주소 라벨 OFF';
+        labelBtn.classList.toggle('off', !isLabelOn);
+
+        var clusterBtn = document.getElementById('cluster-btn');
+        clusterBtn.innerText = isClusteringOn ? '🔵 클러스터링 ON' : '⚪ 클러스터링 OFF';
+        clusterBtn.classList.toggle('off', !isClusteringOn);
+
+        ['all','yes','no'].forEach(function(v) {
+            document.getElementById('filter-absent-' + v).className = 'pill' + (v === absentFilter ? (absentFilter === 'yes' ? ' on-absent' : ' on') : '');
+        });
+
+        ['mixed','address','pole'].forEach(function(v) {
+            document.getElementById('filter-type-' + v).classList.toggle('on', v === searchTypeFilter);
+        });
+
+        document.querySelectorAll('#color-filter-chips .color-chip').forEach(function(chip) {
+            var code = parseInt(chip.dataset.code);
+            if (activeColorFilters.has(code)) chip.classList.add('on');
+            else chip.classList.remove('on');
+        });
+
+        // 지도 뷰 및 지적도 레이어 복구
+        if (map) {
+            var r = document.getElementById('btn-road'), s = document.getElementById('btn-sky'), d = document.getElementById('btn-district');
+            
+            if (currentMapTypeId === 'roadmap') {
+                map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
+                r.className = 'm-type-btn active'; s.className = 'm-type-btn inactive';
+            } else {
+                map.setMapTypeId(naver.maps.MapTypeId.HYBRID);
+                s.className = 'm-type-btn active'; r.className = 'm-type-btn inactive';
+            }
+
+            if (isDistrictOn) {
+                cadastralLayer.setMap(map);
+                d.className = 'm-type-btn active';
+            } else {
+                cadastralLayer.setMap(null);
+                d.className = 'm-type-btn inactive';
+            }
+        }
+    }
 
     /* ── 색상 칩 즉시 생성 ── */
     function buildColorChips() {
@@ -330,9 +405,11 @@
     }
     buildColorChips();
 
+    /* ── 필터 및 토글 버튼 동작 (+ 상태 저장) ── */
     function toggleColorFilter(code, el) {
         if (activeColorFilters.has(code)) { activeColorFilters.delete(code); el.classList.remove('on'); }
         else { activeColorFilters.add(code); el.classList.add('on'); }
+        saveSettings();
         drawMarkers();
     }
 
@@ -344,6 +421,7 @@
             for (var i = 1; i <= 10; i++) activeColorFilters.add(i);
             document.querySelectorAll('#color-filter-chips .color-chip').forEach(el => el.classList.add('on'));
         }
+        saveSettings();
         drawMarkers();
     }
 
@@ -353,6 +431,7 @@
             var el = document.getElementById('filter-absent-' + v);
             el.className = 'pill' + (v === val ? (val === 'yes' ? ' on-absent' : ' on') : '');
         });
+        saveSettings();
         drawMarkers();
     }
 
@@ -361,6 +440,7 @@
         ['mixed','address','pole'].forEach(function(v) {
             document.getElementById('filter-type-' + v).classList.toggle('on', v === val);
         });
+        saveSettings();
         drawMarkers();
     }
 
@@ -373,6 +453,7 @@
         isLabelOn = !isLabelOn;
         this.innerText = isLabelOn ? '🏷️ 주소 라벨 ON' : '🏷️ 주소 라벨 OFF';
         this.classList.toggle('off', !isLabelOn);
+        saveSettings();
         drawMarkers();
     };
 
@@ -380,9 +461,38 @@
         isClusteringOn = !isClusteringOn;
         this.innerText = isClusteringOn ? '🔵 클러스터링 ON' : '⚪ 클러스터링 OFF';
         this.classList.toggle('off', !isClusteringOn);
+        saveSettings();
         drawMarkers();
     };
 
+    function setMapType(type) {
+        currentMapTypeId = type;
+        var r=document.getElementById('btn-road'), s=document.getElementById('btn-sky');
+        if (type==='roadmap') {
+            map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
+            r.className='m-type-btn active'; s.className='m-type-btn inactive';
+        } else {
+            map.setMapTypeId(naver.maps.MapTypeId.HYBRID);
+            s.className='m-type-btn active'; r.className='m-type-btn inactive';
+        }
+        saveSettings();
+    }
+
+    function toggleDistrict() {
+        var btn = document.getElementById('btn-district');
+        if (isDistrictOn) { 
+            cadastralLayer.setMap(null); 
+            btn.className='m-type-btn inactive'; 
+            isDistrictOn=false; 
+        } else { 
+            cadastralLayer.setMap(map);  
+            btn.className='m-type-btn active';   
+            isDistrictOn=true; 
+        }
+        saveSettings();
+    }
+
+    /* ── 유틸 및 기타 기능 ── */
     function getFilteredSites() {
         var results = [];
         currentSites.forEach(function(s) {
@@ -444,23 +554,6 @@
         ).join('');
     }
 
-    function setMapType(type) {
-        var r=document.getElementById('btn-road'), s=document.getElementById('btn-sky');
-        if (type==='roadmap') {
-            map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
-            r.className='m-type-btn active'; s.className='m-type-btn inactive';
-        } else {
-            map.setMapTypeId(naver.maps.MapTypeId.HYBRID);
-            s.className='m-type-btn active'; r.className='m-type-btn inactive';
-        }
-    }
-
-    function toggleDistrict() {
-        var btn = document.getElementById('btn-district');
-        if (isDistrictOn) { cadastralLayer.setMap(null); btn.className='m-type-btn inactive'; isDistrictOn=false; }
-        else              { cadastralLayer.setMap(map);  btn.className='m-type-btn active';   isDistrictOn=true; }
-    }
-
     function getDistance(lat1, lon1, lat2, lon2) {
         const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
         const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
@@ -479,6 +572,9 @@
             anchorSize:new naver.maps.Size(10,10),
             pixelOffset:new naver.maps.Point(0,-10), zIndex:200
         });
+
+        // [핵심 변경점] 맵 초기화 직후 저장된 설정을 바로 불러옵니다.
+        loadAndApplySettings();
 
         naver.maps.Event.addListener(map, 'click', function() {
             if (currentInfoWindow.getMap()) currentInfoWindow.close();
@@ -716,7 +812,6 @@
         if(heading!==null){
             var arr=document.getElementById('direction-arrow');
             if(arr) {
-                // 방향 센서 값이 수신되면 강제로 보여지게 처리
                 arr.style.display = 'block';
                 arr.style.transform='rotate('+heading+'deg)';
             }
@@ -742,7 +837,7 @@
                     var loc=new naver.maps.LatLng(pos.coords.latitude,pos.coords.longitude);
                     if(!myLocMarker){
                         myLocMarker=new naver.maps.Marker({position:loc,map,
-                            icon:{content:'<div class="my-location-marker" style="pointer-events:none;"><div id="direction-arrow" class="direction-arrow"></div><div class="location-dot"></div></div>',
+                            icon:{content:'<div class="my-location-marker" style="pointer-events:none;"><div id="direction-arrow" class="direction-arrow" style="display:none;"></div><div class="location-dot"></div></div>',
                                 size:new naver.maps.Size(50,50),anchor:new naver.maps.Point(25,25)}});
                         map.setCenter(loc);
                     } else { myLocMarker.setPosition(loc); }
@@ -753,18 +848,16 @@
         }
     };
 
-    /* ── 내 위치 즉시 이동 (우측 하단 FAB 전용 - 속도 개선) ── */
+    /* ── 내 위치 즉시 이동 (우측 하단 FAB 전용) ── */
     function focusMyLocation() {
         if (!navigator.geolocation) { alert("위치 정보가 지원되지 않는 환경입니다."); return; }
         
-        // 🚀 개선점 1: 이미 위치 추적이 켜져 있다면, 무거운 GPS 검색 없이 바로 마커 위치로 화면만 이동!
         if (watchId && myLocMarker) {
             map.setCenter(myLocMarker.getPosition());
             map.setZoom(16);
             return;
         }
 
-        // 🚀 개선점 2: maximumAge(10초 캐시 허용), timeout(5초 타임아웃) 추가로 로딩 딜레이 최소화
         navigator.geolocation.getCurrentPosition(function(pos) {
             var loc = new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
             map.setCenter(loc);
@@ -774,8 +867,7 @@
                 myLocMarker = new naver.maps.Marker({
                     position: loc, map: map,
                     icon: {
-                        // 화살표에서 display:none을 제거하여 센서 작동 시 정상 표시되도록 수정
-                        content: '<div class="my-location-marker" style="pointer-events:none;"><div id="direction-arrow" class="direction-arrow"></div><div class="location-dot"></div></div>',
+                        content: '<div class="my-location-marker" style="pointer-events:none;"><div id="direction-arrow" class="direction-arrow" style="display:none;"></div><div class="location-dot"></div></div>',
                         size: new naver.maps.Size(50, 50), anchor: new naver.maps.Point(25, 25)
                     }
                 });
@@ -960,7 +1052,11 @@
     }
 
     document.getElementById('clear-btn').onclick = function() {
-        if(confirm("모든 데이터를 삭제하시겠습니까?")){ localStorage.removeItem('kesco_map_data'); location.reload(); }
+        if(confirm("모든 데이터를 삭제하시겠습니까?")){ 
+            localStorage.removeItem('kesco_map_data'); 
+            localStorage.removeItem('kesco_settings'); // 설정값도 함께 완전 초기화
+            location.reload(); 
+        }
     };
 </script>
 </body>
