@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="color-scheme" content="light only">
-    <title>공시맵 3.1 (Naver)</title>
+    <title>공시맵 3.2 (Naver)</title>
 
     <!-- ───────────────────────────────────────────────
          외부 라이브러리 로드
@@ -208,6 +208,41 @@
         #my-loc-fab:active { transform: scale(0.9); background: #f0f0f0; }
         #my-loc-fab svg { width: 24px; height: 24px; fill: var(--text); transition: fill 0.2s; }
         #my-loc-fab.active svg { fill: var(--primary); }
+
+        /* ───── 나침반 자동회전 FAB (내 위치 FAB 위쪽에 적층) ─────
+           ON 시 디바이스 헤딩에 따라 지도가 자동 회전 */
+        #compass-fab {
+            position: fixed; bottom: 88px; right: 20px; z-index: 1000;
+            width: 48px; height: 48px; background: #fff; border-radius: 50%;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.05);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform 0.15s, background 0.15s;
+        }
+        #compass-fab:active { transform: scale(0.9); background: #f0f0f0; }
+        #compass-fab svg { width: 26px; height: 26px; transition: fill 0.2s; fill: var(--text-muted); }
+        /* 활성화 시: 빨간 N 마커 강조 */
+        #compass-fab.active { border: 2px solid var(--danger); }
+        #compass-fab.active svg { fill: var(--danger); }
+
+        /* ───── 정북 복귀 버튼 (작은 인디케이터) ─────
+           heading !== 0 일 때만 표시
+           나침반 FAB 더 위쪽에 배치 */
+        #north-fab {
+            position: fixed; bottom: 146px; right: 20px; z-index: 1000;
+            width: 38px; height: 38px; background: #fff; border-radius: 50%;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.05);
+            display: none; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform 0.15s, background 0.15s;
+        }
+        #north-fab.visible { display: flex; }
+        #north-fab:active { transform: scale(0.9); background: #f0f0f0; }
+        /* 화살표를 transform으로 회전시켜 "현재 어디가 북쪽인지" 표시 */
+        #north-fab .arrow-wrap {
+            display: inline-block;
+            transition: transform 0.2s ease-out;
+            transform-origin: center center;
+        }
+        #north-fab svg { width: 22px; height: 22px; display: block; }
     </style>
 </head>
 <body>
@@ -224,7 +259,7 @@
             <button id="btn-district" class="m-type-btn inactive" onclick="toggleDistrict()">지적편집도</button>
         </div>
 
-        <h3>📍 공시맵 <span class="badge">3.1</span></h3>
+        <h3>📍 공시맵 <span class="badge">3.2</span></h3>
 
         <div id="menu-content">
             <!-- 검색 그리드: 인입주 단일조회 / 키워드 필터 -->
@@ -310,6 +345,26 @@
         </svg>
     </div>
 
+    <!-- 나침반 자동회전 FAB (내 위치 FAB 위) -->
+    <div id="compass-fab" onclick="toggleCompassMode()" title="나침반 자동회전">
+        <!-- 다이아몬드형 컴퍼스 아이콘 (빨간 N) -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M12 2L8 14L12 12L16 14L12 2Z" fill="#DC2626"/>
+            <path d="M12 22L8 10L12 12L16 10L12 22Z" fill="#94A3B8"/>
+        </svg>
+    </div>
+
+    <!-- 정북 복귀 버튼 (회전 중일 때만 표시) -->
+    <div id="north-fab" onclick="resetHeading()" title="북쪽으로 정렬">
+        <span class="arrow-wrap" id="north-arrow-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <!-- 위쪽 빨강 (북) / 아래쪽 회색 (남) 화살표 -->
+                <path d="M12 2L7 14L12 11L17 14L12 2Z" fill="#DC2626"/>
+                <text x="12" y="22" text-anchor="middle" font-size="7" font-weight="bold" fill="#1E293B">N</text>
+            </svg>
+        </span>
+    </div>
+
     <!-- 롱프레스 리플 + 지도 컨테이너 -->
     <div id="longpress-ripple"></div>
     <div id="map"></div>
@@ -366,6 +421,14 @@
     var searchTypeFilter = 'mixed';      // 'mixed' | 'address' | 'pole'
     var quickSearchKeyword = "";         // 부분 일치 키워드
     var pendingMarkerCoord = null;       // 모달 확정 전 임시 좌표
+
+    /* 회전 관련 상태
+       - isCompassModeOn: 나침반 자동회전 ON/OFF
+       - currentHeading: 현재 지도 헤딩(deg, 0=정북). UI 표시용으로도 사용
+       - compassWatchActive: deviceorientation 리스너 활성화 여부 (중복 등록 방지) */
+    var isCompassModeOn = false;
+    var currentHeading = 0;
+    var compassWatchActive = false;
 
     /* 색상 코드 → HEX */
     var colorMap = {
@@ -700,9 +763,13 @@
     ═══════════════════════════════════════════════════════════ */
     window.onload = function() {
         // 지도 생성: 전북 지역 중심, 줌 12
+        // tileTransition: 회전/이동 시 부드러운 타일 전환
+        // disableTwoFingerTapZoom: 두 손가락 회전 제스처와 줄어듦 제스처 충돌 방지
         map = new naver.maps.Map('map', {
             center: new naver.maps.LatLng(35.9180, 127.1241), zoom: 12,
-            mapTypeControl: false, scaleControl: true, logoControl: true
+            mapTypeControl: false, scaleControl: true, logoControl: true,
+            tileTransition: true,
+            disableTwoFingerTapZoom: true
         });
 
         // 지적편집도 레이어 (toggle 시 setMap만 변경)
@@ -721,6 +788,14 @@
         // 지도 빈공간 클릭 시 인포윈도우 닫기
         naver.maps.Event.addListener(map, 'click', function() {
             if (currentInfoWindow.getMap()) currentInfoWindow.close();
+        });
+
+        // 지도 헤딩이 바뀔 때마다 UI 동기화
+        // - heading_changed: 네이버맵 공식 이벤트
+        // - 정북 복귀 버튼 표시/숨김 + 화살표 회전 처리
+        naver.maps.Event.addListener(map, 'heading_changed', function() {
+            currentHeading = map.getHeading();
+            updateNorthIndicator();
         });
 
         // 우클릭(데스크톱) → 마커 추가 모달
@@ -1105,6 +1180,98 @@
             }
         }
     };
+
+    /* ═══════════════════════════════════════════════════════════
+       [지도 회전 기능]
+       └ 네이버맵은 setHeading(deg) 공식 지원
+       └ 0=정북, 시계방향으로 deg 증가
+       └ 두 손가락 회전 제스처는 SDK가 기본 활성화함
+    ═══════════════════════════════════════════════════════════ */
+
+    /** 정북 인디케이터(north-fab) 표시/회전 업데이트
+     *  - heading=0이면 숨김, 그 외엔 표시
+     *  - 화살표는 -heading만큼 회전 → 화면상 북쪽이 어디인지 가리킴
+     *    (예: 지도가 90도 회전 = 시계방향 → 북쪽은 화면 왼쪽 → 화살표 -90도) */
+    function updateNorthIndicator() {
+        var fab     = document.getElementById('north-fab');
+        var arrow   = document.getElementById('north-arrow-wrap');
+        // 부동소수점 오차 고려해 0.5도 미만은 정북으로 간주
+        var isNorth = Math.abs(currentHeading) < 0.5 || Math.abs(currentHeading - 360) < 0.5;
+
+        if (isNorth) {
+            fab.classList.remove('visible');
+        } else {
+            fab.classList.add('visible');
+            arrow.style.transform = 'rotate(' + (-currentHeading) + 'deg)';
+        }
+    }
+
+    /** 정북(0°)으로 즉시 복귀 */
+    function resetHeading() {
+        // 나침반 모드가 켜져 있다면 자동 회전이 다시 덮어쓸 수 있으니 함께 끔
+        if (isCompassModeOn) toggleCompassMode();
+        map.setHeading(0);
+    }
+
+    /** 디바이스 방향(나침반) → 지도 헤딩 매핑 */
+    function handleCompassOrientation(event) {
+        var heading = null;
+        if (event.webkitCompassHeading !== undefined) {
+            // iOS Safari: 0=북, 시계방향 → 그대로 사용
+            heading = event.webkitCompassHeading;
+        } else if (event.alpha !== null) {
+            // Android: alpha는 반시계 방향이므로 360에서 빼서 시계 방향으로 변환
+            heading = 360 - event.alpha;
+        }
+
+        if (heading !== null) {
+            // 지도가 향하는 방향이 디바이스 헤딩과 같아지도록 회전
+            // (즉, 내가 보고 있는 방향이 화면 위쪽으로 오게)
+            map.setHeading(heading);
+        }
+    }
+
+    /** 나침반 자동회전 모드 토글
+     *  - ON: deviceorientation 리스너 등록 → 디바이스 헤딩이 화면 위로 오게 자동 회전
+     *  - OFF: 리스너 해제 (수동 회전만 가능)
+     *  - iOS 13+에서는 DeviceOrientationEvent.requestPermission() 호출 필요 */
+    function toggleCompassMode() {
+        var btn = document.getElementById('compass-fab');
+
+        if (isCompassModeOn) {
+            // ── OFF 전환 ──
+            window.removeEventListener('deviceorientationabsolute', handleCompassOrientation, true);
+            window.removeEventListener('deviceorientation',         handleCompassOrientation, true);
+            isCompassModeOn = false;
+            compassWatchActive = false;
+            btn.classList.remove('active');
+            return;
+        }
+
+        // ── ON 전환 ──
+        // iOS 13+ 권한 요청
+        if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission().then(function(res) {
+                if (res === 'granted') {
+                    window.addEventListener('deviceorientation', handleCompassOrientation, true);
+                    isCompassModeOn = true;
+                    compassWatchActive = true;
+                    btn.classList.add('active');
+                } else {
+                    alert("나침반 권한이 거부되었습니다.\n설정 → Safari에서 권한을 허용해주세요.");
+                }
+            }).catch(function() {
+                alert("나침반 권한 요청에 실패했습니다.");
+            });
+        } else {
+            // Android / 일반 브라우저
+            window.addEventListener('deviceorientationabsolute', handleCompassOrientation, true);
+            window.addEventListener('deviceorientation',         handleCompassOrientation, true);
+            isCompassModeOn = true;
+            compassWatchActive = true;
+            btn.classList.add('active');
+        }
+    }
 
     /* ═══════════════════════════════════════════════════════════
        [내 위치 FAB] 한 번 클릭 시 카메라 이동, 추적 안 켜져있으면 자동 시작
