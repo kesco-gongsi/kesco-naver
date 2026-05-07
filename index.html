@@ -4,13 +4,21 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="color-scheme" content="light only">
-    <title>공시맵 3.0</title>
+    <title>공시맵 3.1 (Naver)</title>
 
+    <!-- ───────────────────────────────────────────────
+         외부 라이브러리 로드
+         - XLSX: 엑셀 파싱
+         - Naver Maps SDK: geocoder 서브모듈 포함 (주소→좌표 변환)
+         - MarkerClustering: 네이버 공식 marker-tools 클러스터러
+    ─────────────────────────────────────────────── -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=n58317v9g5&submodules=geocoder"></script>
     <script src="https://cdn.jsdelivr.net/gh/navermaps/marker-tools.js@master/marker-clustering/src/MarkerClustering.js"></script>
 
     <style>
+        /* ───── 디자인 토큰 (CSS 변수) ─────
+           모든 색상/모서리/그림자를 한 곳에서 관리 */
         :root {
             color-scheme: light;
             --primary: #0055AA;
@@ -33,6 +41,7 @@
         body { margin: 0; padding: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; background: var(--bg); color: var(--text); }
         #map { width: 100%; height: 100vh; position: absolute; top: 0; left: 0; }
 
+        /* ───── 좌상단 메뉴 패널 ───── */
         #upload-box {
             position: absolute; top: 12px; left: 12px; z-index: 1001;
             background: var(--surface); padding: 14px; border-radius: 14px;
@@ -41,9 +50,11 @@
             transition: all 0.25s ease; max-height: calc(100dvh - 24px);
             display: flex; flex-direction: column;
         }
+        /* 접힌 상태: 토글 버튼만 보이도록 축소 */
         #upload-box.collapsed { width: 110px; padding: 0; height: 40px; border: none; background: transparent; box-shadow: none; display: block; }
         #upload-box.collapsed h3, #upload-box.collapsed #menu-content, #upload-box.collapsed .map-type-wrapper { display: none; }
 
+        /* ───── 공통 버튼 (.btn + 컬러 modifier) ───── */
         .btn {
             width: 100%; padding: 10px 14px; border: none; border-radius: var(--radius);
             font-weight: 600; cursor: pointer; font-size: 12.5px;
@@ -63,6 +74,7 @@
 
         #toggle-btn { cursor: pointer; background: var(--primary); border: none; color: white; font-size: 12.5px; padding: 10px 14px; border-radius: var(--radius); font-weight: 700; width: 100%; }
 
+        /* ───── 지도 타입 전환 (일반/위성/지적) ───── */
         .map-type-wrapper { display: flex; gap: 5px; margin: 12px 0 4px; flex-shrink: 0; }
         .m-type-btn { flex: 1; padding: 7px 4px; font-size: 11.5px; font-weight: 700; border: 1px solid var(--primary); border-radius: var(--radius); cursor: pointer; transition: 0.15s; word-break: keep-all; }
         .m-type-btn.active  { background: var(--primary); color: #fff; }
@@ -71,10 +83,12 @@
         h3 { flex-shrink: 0; margin: 8px 0 12px; font-size: 16px; color: var(--primary); display: flex; align-items: center; gap: 6px; letter-spacing: -0.3px; }
         h3 .badge { font-size: 10px; background: var(--primary); color: #fff; padding: 2px 6px; border-radius: 99px; }
 
+        /* 메뉴 본문 (스크롤 영역) */
         #menu-content { flex-grow: 1; min-height: 0; overflow-y: auto; padding-right: 3px; padding-bottom: 12px; }
         #menu-content::-webkit-scrollbar { width: 3px; }
         #menu-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
+        /* 검색 그리드 (인입주 / 빠른검색) */
         .search-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
         .search-cell label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; }
         .search-cell input { width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; background: var(--bg); color: var(--text); transition: border-color 0.15s; }
@@ -83,6 +97,7 @@
 
         .divider { border: 0; border-top: 1px solid var(--border); margin: 13px 0; }
 
+        /* ───── 필터 칩 (색상/부재/조회방식) ───── */
         .filter-section { margin-bottom: 12px; }
         .filter-label { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
         .filter-label a { color: var(--primary); cursor: pointer; font-weight: 600; }
@@ -105,6 +120,7 @@
         }
         .type-chip.on { background: var(--primary-light); border-color: var(--primary); }
 
+        /* 파일 업로드 영역 */
         .file-section { margin-bottom: 10px; }
         .file-section input[type=file] { font-size: 11.5px; width: 100%; margin-bottom: 4px; }
         .file-hint { font-size: 10px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5; }
@@ -113,11 +129,13 @@
 
         #status { margin-top: 10px; font-size: 11.5px; color: var(--text-muted); text-align: center; font-weight: 600; background: var(--bg); padding: 6px 8px; border-radius: var(--radius); border: 1px solid var(--border); }
 
+        /* 누락/실패 목록 */
         #failed-section { display: none; margin-top: 12px; }
         #failed-list-content { display: none; max-height: 200px; overflow-y: auto; font-size: 11px; background: #fff; border: 1px solid var(--border); padding: 8px; border-radius: var(--radius); margin-top: 5px; }
         .failed-item { border-bottom: 1px solid var(--border); padding: 6px 0; }
         .failed-item:last-child { border-bottom: none; }
 
+        /* ───── 인포윈도우 내부 ───── */
         .iw-container { background: #fff; color: var(--text); }
         .iw-item { border-bottom: 1px solid var(--border); padding: 12px 0; }
         .iw-item:last-child { border-bottom: none; }
@@ -135,16 +153,29 @@
         .del-btn-iw { display: block; margin-top: 5px; background: var(--danger-light); color: var(--danger); text-align: center; padding: 7px; border-radius: 6px; font-size: 11px; font-weight: 700; border: none; width: 100%; cursor: pointer; }
         .bulk-del-btn { display: block; margin-bottom: 10px; background: #7C3AED22; color: #7C3AED; text-align: center; padding: 9px; border-radius: 6px; font-size: 12px; font-weight: 700; border: 1.5px dashed #7C3AED; width: 100%; cursor: pointer; }
 
+        /* ───── 내 위치 마커 (원 + 방향 화살표) ───── */
         .my-location-marker { position: relative; width: 50px; height: 50px; pointer-events: none; }
         .direction-arrow { position: absolute; top: 0; left: 15px; width: 20px; height: 25px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EF4444'%3E%3Cpath d='M12 2L22 20L12 17L2 20L12 2Z'/%3E%3C/svg%3E"); background-size: contain; background-repeat: no-repeat; transform-origin: center bottom; z-index: 2; transition: transform 0.1s; }
         .location-dot { position: absolute; top: 15px; left: 15px; width: 20px; height: 20px; background: var(--primary); border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 3; }
 
-        .marker-label { position: absolute; left: 50%; top: -4px; transform: translate(-50%,-100%); background: rgba(255,255,255,0.93); color: var(--text); font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 4px; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 1px 5px rgba(0,0,0,0.18); pointer-events: none; border: 1px solid rgba(0,0,0,0.08); line-height: 1.4; }
+        /* ───── 마커 위 라벨 (상호명 표시) ─────
+           70% 축소 적용: top -3px, font 9.5px, 폭 130px */
+        .marker-label {
+            position: absolute; left: 50%; top: -3px;
+            transform: translate(-50%, -100%);
+            background: rgba(255,255,255,0.93);
+            color: var(--text); font-size: 9.5px; font-weight: 700;
+            padding: 2px 6px; border-radius: 4px; white-space: nowrap;
+            max-width: 130px; overflow: hidden; text-overflow: ellipsis;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.18); pointer-events: none;
+            border: 1px solid rgba(0,0,0,0.08); line-height: 1.4;
+        }
 
+        /* 롱프레스 리플 효과 */
         #longpress-ripple { position: absolute; width: 60px; height: 60px; border-radius: 50%; background: rgba(0,85,170,0.2); border: 2px solid rgba(0,85,170,0.45); transform: translate(-50%,-50%) scale(0); pointer-events: none; z-index: 1000; transition: transform 0.6s ease-out, opacity 0.6s ease-out; opacity: 0; }
         #longpress-ripple.active { transform: translate(-50%,-50%) scale(1); opacity: 1; }
 
-        /* 커스텀 모달 CSS */
+        /* ───── 수동 마커 추가 모달 ───── */
         #custom-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;
@@ -166,7 +197,7 @@
         .m-btn-cancel { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
         .m-btn-save { background: var(--primary); color: #fff; }
 
-        /* 내 위치 버튼(FAB) */
+        /* ───── 우하단 내 위치 FAB ───── */
         #my-loc-fab {
             position: fixed; bottom: 30px; right: 20px; z-index: 1000;
             width: 48px; height: 48px; background: #fff; border-radius: 50%;
@@ -180,18 +211,23 @@
     </style>
 </head>
 <body>
+    <!-- ═════════════════════════════════════════════
+         좌상단 메뉴 패널
+    ═════════════════════════════════════════════ -->
     <div id="upload-box">
         <button id="toggle-btn" onclick="toggleMenu()">접기 ▲</button>
 
+        <!-- 지도 타입 전환 -->
         <div class="map-type-wrapper">
             <button id="btn-road"     class="m-type-btn active"   onclick="setMapType('roadmap')">일반지도</button>
             <button id="btn-sky"      class="m-type-btn inactive" onclick="setMapType('skyview')">위성지도</button>
             <button id="btn-district" class="m-type-btn inactive" onclick="toggleDistrict()">지적편집도</button>
         </div>
 
-        <h3>📍 공시맵 <span class="badge">3.0</span></h3>
+        <h3>📍 공시맵 <span class="badge">3.1</span></h3>
 
         <div id="menu-content">
+            <!-- 검색 그리드: 인입주 단일조회 / 키워드 필터 -->
             <div class="search-grid">
                 <div class="search-cell">
                     <label>⚡ 인입주 찾기</label>
@@ -209,15 +245,17 @@
 
             <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;">🗂 마커 표시 설정</div>
 
+            <!-- 조회 방식 필터 -->
             <div class="filter-section">
                 <div class="filter-label">조회 방식 (아이콘 구분)</div>
                 <div class="chip-row">
                     <div class="type-chip on" id="filter-type-mixed"   onclick="toggleSearchTypeFilter('mixed')">혼합<br><span style="font-size:9px;font-weight:400;">(주소→인입주)</span></div>
-                    <div class="type-chip"    id="filter-type-address" onclick="toggleSearchTypeFilter('address')">💧 주소만</div>
+                    <div class="type-chip"    id="filter-type-address" onclick="toggleSearchTypeFilter('address')">⭐ 주소만</div>
                     <div class="type-chip"    id="filter-type-pole"    onclick="toggleSearchTypeFilter('pole')">💎 인입주만</div>
                 </div>
             </div>
 
+            <!-- 색상 필터 -->
             <div class="filter-section">
                 <div class="filter-label">
                     <span>색상 코드</span>
@@ -226,6 +264,7 @@
                 <div class="chip-row" id="color-filter-chips"></div>
             </div>
 
+            <!-- 부재 여부 필터 -->
             <div class="filter-section">
                 <div class="filter-label">부재 여부</div>
                 <div class="chip-row">
@@ -237,11 +276,13 @@
 
             <hr class="divider">
 
+            <!-- 엑셀 업로드 -->
             <div class="file-section">
                 <input type="file" id="excel-file" accept=".xlsx,.xls">
                 <div class="file-hint">형식: A열 상호 / B열 주소 / C열 색상코드 / <b style="color:var(--primary)">D열 인입주번호</b></div>
             </div>
 
+            <!-- 액션 버튼 -->
             <div class="btn-stack">
                 <button id="upload-btn"  class="btn btn-primary">📍 엑셀 데이터 표출</button>
                 <button id="track-btn"   class="btn btn-outline">📡 위치 표기 시작</button>
@@ -252,6 +293,7 @@
 
             <div id="status">지도 우클릭/길게 눌러 핀 추가</div>
 
+            <!-- 주소 변환 실패 목록 -->
             <div id="failed-section">
                 <button class="btn btn-danger" style="margin-top:10px;" onclick="toggleFailedList()">
                     ❌ 누락/실패: <span id="fail-count">0</span>건 확인
@@ -261,15 +303,18 @@
         </div>
     </div>
 
+    <!-- 우하단 내 위치 FAB -->
     <div id="my-loc-fab" onclick="focusMyLocation()">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
         </svg>
     </div>
 
+    <!-- 롱프레스 리플 + 지도 컨테이너 -->
     <div id="longpress-ripple"></div>
     <div id="map"></div>
 
+    <!-- 수동 마커 추가 모달 -->
     <div id="custom-modal">
         <div class="modal-box">
             <h4>📍 마커 직접 추가</h4>
@@ -283,45 +328,62 @@
     </div>
 
 <script>
+    /* ═══════════════════════════════════════════════════════════
+       [상수] 인입주 좌표 데이터가 저장된 GitHub 리포지토리
+       └ 4자리 prefix별로 CSV 분리 저장 (예: 1234.csv)
+    ═══════════════════════════════════════════════════════════ */
     const GITHUB_USER   = "kesco-gongsi";
     const GITHUB_REPO   = "ndis-data1";
     const GITHUB_BRANCH = "main";
 
+    /* ═══════════════════════════════════════════════════════════
+       [마커 크기 상수] 70% 축소 적용
+       └ 기존 30×40 → 21×28
+       └ 별 모양은 viewBox 24×24 기준으로 그림
+    ═══════════════════════════════════════════════════════════ */
+    const MARKER_W = 21;
+    const MARKER_H = 28;
+
+    /* ═══════════════════════════════════════════════════════════
+       [전역 상태 변수]
+       - map/clusterer/cadastralLayer/currentInfoWindow: 네이버맵 객체
+       - currentSites: 표시 중인 모든 사이트 데이터(원본)
+       - renderedMarkers: 현재 지도에 그려진 마커 객체들 (clear용)
+    ═══════════════════════════════════════════════════════════ */
     var map, clusterer, cadastralLayer, currentInfoWindow;
     var watchId = null;
     var currentSites = [];
     var myLocMarker = null;
     var renderedMarkers = [];
 
-    // --- 상태 저장용 변수들 ---
-    var isDistrictOn = false;
-    var currentMapTypeId = 'roadmap';
-    var isAbsoluteOrientation = false;
-    var isClusteringOn = true;
-    var isLabelOn = true;
-    var activeColorFilters = new Set([1,2,3,4,5,6,7,8,9,10]);
-    var absentFilter = 'all';
-    var searchTypeFilter = 'mixed';
-    var quickSearchKeyword = "";
+    /* UI/필터 상태 */
+    var isDistrictOn = false;            // 지적편집도 표시 여부
+    var currentMapTypeId = 'roadmap';    // 'roadmap' | 'skyview'
+    var isClusteringOn = true;           // 클러스터링 ON/OFF
+    var isLabelOn = true;                // 마커 위 라벨 표시
+    var activeColorFilters = new Set([1,2,3,4,5,6,7,8,9,10]); // 보일 색상 코드
+    var absentFilter = 'all';            // 'all' | 'yes' | 'no'
+    var searchTypeFilter = 'mixed';      // 'mixed' | 'address' | 'pole'
+    var quickSearchKeyword = "";         // 부분 일치 키워드
+    var pendingMarkerCoord = null;       // 모달 확정 전 임시 좌표
 
-    var pendingMarkerCoord = null;
-
+    /* 색상 코드 → HEX */
     var colorMap = {
         1:"#0055AA", 2:"#EF4444", 3:"#22C55E", 4:"#F97316",
         5:"#A855F7", 6:"#EC4899", 7:"#EAB308", 8:"#06B6D4",
         9:"#78350F", 10:"#1F2937"
     };
-    var ABSENT_COLOR_CODE = 5;
+    var ABSENT_COLOR_CODE = 5;           // 부재 시 강제 색상
 
-    /* ── 설정 저장 및 불러오기 (네이버맵 방식) ── */
+    /* ═══════════════════════════════════════════════════════════
+       [설정 영속화] localStorage에 UI 설정 저장/복구
+       └ 새로고침해도 필터/지도 타입 유지
+    ═══════════════════════════════════════════════════════════ */
     function saveSettings() {
         var settings = {
-            isClusteringOn: isClusteringOn,
-            isLabelOn: isLabelOn,
-            isDistrictOn: isDistrictOn,
+            isClusteringOn, isLabelOn, isDistrictOn,
             mapTypeId: currentMapTypeId,
-            absentFilter: absentFilter,
-            searchTypeFilter: searchTypeFilter,
+            absentFilter, searchTypeFilter,
             activeColorFilters: Array.from(activeColorFilters)
         };
         localStorage.setItem('kesco_settings', JSON.stringify(settings));
@@ -331,49 +393,54 @@
         var saved = localStorage.getItem('kesco_settings');
         if (!saved) return;
 
-        var settings = JSON.parse(saved);
-        
-        if (settings.isClusteringOn !== undefined) isClusteringOn = settings.isClusteringOn;
-        if (settings.isLabelOn !== undefined) isLabelOn = settings.isLabelOn;
-        if (settings.isDistrictOn !== undefined) isDistrictOn = settings.isDistrictOn;
-        if (settings.mapTypeId) currentMapTypeId = settings.mapTypeId;
-        if (settings.absentFilter) absentFilter = settings.absentFilter;
-        if (settings.searchTypeFilter) searchTypeFilter = settings.searchTypeFilter;
-        if (settings.activeColorFilters) activeColorFilters = new Set(settings.activeColorFilters);
+        var s = JSON.parse(saved);
+        // 저장값이 있을 때만 덮어쓰기 (?? 연산자로 간결화)
+        isClusteringOn   = s.isClusteringOn   ?? isClusteringOn;
+        isLabelOn        = s.isLabelOn        ?? isLabelOn;
+        isDistrictOn     = s.isDistrictOn     ?? isDistrictOn;
+        currentMapTypeId = s.mapTypeId        ?? currentMapTypeId;
+        absentFilter     = s.absentFilter     ?? absentFilter;
+        searchTypeFilter = s.searchTypeFilter ?? searchTypeFilter;
+        if (s.activeColorFilters) activeColorFilters = new Set(s.activeColorFilters);
 
-        // UI 텍스트 및 상태 복구
+        // 라벨 버튼 동기화
         var labelBtn = document.getElementById('label-btn');
         labelBtn.innerText = isLabelOn ? '🏷️ 주소 라벨 ON' : '🏷️ 주소 라벨 OFF';
         labelBtn.classList.toggle('off', !isLabelOn);
 
+        // 클러스터링 버튼 동기화
         var clusterBtn = document.getElementById('cluster-btn');
         clusterBtn.innerText = isClusteringOn ? '🔵 클러스터링 ON' : '⚪ 클러스터링 OFF';
         clusterBtn.classList.toggle('off', !isClusteringOn);
 
+        // 부재 필터 pill 동기화
         ['all','yes','no'].forEach(function(v) {
-            document.getElementById('filter-absent-' + v).className = 'pill' + (v === absentFilter ? (absentFilter === 'yes' ? ' on-absent' : ' on') : '');
+            document.getElementById('filter-absent-' + v).className =
+                'pill' + (v === absentFilter ? (absentFilter === 'yes' ? ' on-absent' : ' on') : '');
         });
 
+        // 조회 방식 chip 동기화
         ['mixed','address','pole'].forEach(function(v) {
             document.getElementById('filter-type-' + v).classList.toggle('on', v === searchTypeFilter);
         });
 
+        // 색상 칩 동기화
         document.querySelectorAll('#color-filter-chips .color-chip').forEach(function(chip) {
-            var code = parseInt(chip.dataset.code);
-            if (activeColorFilters.has(code)) chip.classList.add('on');
-            else chip.classList.remove('on');
+            chip.classList.toggle('on', activeColorFilters.has(parseInt(chip.dataset.code)));
         });
 
-        // 지도 뷰 및 지적도 레이어 복구
+        // 지도 객체가 준비된 경우에만 레이어 복구
         if (map) {
-            var r = document.getElementById('btn-road'), s = document.getElementById('btn-sky'), d = document.getElementById('btn-district');
-            
+            var r = document.getElementById('btn-road'),
+                s2 = document.getElementById('btn-sky'),
+                d = document.getElementById('btn-district');
+
             if (currentMapTypeId === 'roadmap') {
                 map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
-                r.className = 'm-type-btn active'; s.className = 'm-type-btn inactive';
+                r.className = 'm-type-btn active'; s2.className = 'm-type-btn inactive';
             } else {
                 map.setMapTypeId(naver.maps.MapTypeId.HYBRID);
-                s.className = 'm-type-btn active'; r.className = 'm-type-btn inactive';
+                s2.className = 'm-type-btn active'; r.className = 'm-type-btn inactive';
             }
 
             if (isDistrictOn) {
@@ -386,12 +453,15 @@
         }
     }
 
-    /* ── 색상 칩 즉시 생성 ── */
+    /* ═══════════════════════════════════════════════════════════
+       [색상 칩 동적 생성] 1~10 색상에 대한 토글 칩
+    ═══════════════════════════════════════════════════════════ */
     function buildColorChips() {
         var wrap = document.getElementById('color-filter-chips');
         if (!wrap) return;
         wrap.innerHTML = '';
         for (var c = 1; c <= 10; c++) {
+            // IIFE로 클로저에 code 고정 (var 스코프 이슈 방지)
             (function(code) {
                 var chip = document.createElement('div');
                 chip.className = 'color-chip on';
@@ -405,7 +475,9 @@
     }
     buildColorChips();
 
-    /* ── 필터 및 토글 버튼 동작 (+ 상태 저장) ── */
+    /* ═══════════════════════════════════════════════════════════
+       [필터 토글] 모두 saveSettings + drawMarkers로 즉시 반영
+    ═══════════════════════════════════════════════════════════ */
     function toggleColorFilter(code, el) {
         if (activeColorFilters.has(code)) { activeColorFilters.delete(code); el.classList.remove('on'); }
         else { activeColorFilters.add(code); el.classList.add('on'); }
@@ -413,6 +485,7 @@
         drawMarkers();
     }
 
+    /** 모두 켜져있으면 모두 끄고, 아니면 모두 켜기 */
     function toggleAllColors() {
         if (activeColorFilters.size === 10) {
             activeColorFilters.clear();
@@ -449,6 +522,7 @@
         drawMarkers();
     }
 
+    /* 라벨 ON/OFF */
     document.getElementById('label-btn').onclick = function() {
         isLabelOn = !isLabelOn;
         this.innerText = isLabelOn ? '🏷️ 주소 라벨 ON' : '🏷️ 주소 라벨 OFF';
@@ -457,6 +531,7 @@
         drawMarkers();
     };
 
+    /* 클러스터링 ON/OFF */
     document.getElementById('cluster-btn').onclick = function() {
         isClusteringOn = !isClusteringOn;
         this.innerText = isClusteringOn ? '🔵 클러스터링 ON' : '⚪ 클러스터링 OFF';
@@ -465,43 +540,52 @@
         drawMarkers();
     };
 
+    /* ═══════════════════════════════════════════════════════════
+       [지도 타입 / 지적편집도 토글]
+    ═══════════════════════════════════════════════════════════ */
     function setMapType(type) {
         currentMapTypeId = type;
-        var r=document.getElementById('btn-road'), s=document.getElementById('btn-sky');
-        if (type==='roadmap') {
+        var r = document.getElementById('btn-road'), s = document.getElementById('btn-sky');
+        if (type === 'roadmap') {
             map.setMapTypeId(naver.maps.MapTypeId.NORMAL);
-            r.className='m-type-btn active'; s.className='m-type-btn inactive';
+            r.className = 'm-type-btn active'; s.className = 'm-type-btn inactive';
         } else {
             map.setMapTypeId(naver.maps.MapTypeId.HYBRID);
-            s.className='m-type-btn active'; r.className='m-type-btn inactive';
+            s.className = 'm-type-btn active'; r.className = 'm-type-btn inactive';
         }
         saveSettings();
     }
 
     function toggleDistrict() {
         var btn = document.getElementById('btn-district');
-        if (isDistrictOn) { 
-            cadastralLayer.setMap(null); 
-            btn.className='m-type-btn inactive'; 
-            isDistrictOn=false; 
-        } else { 
-            cadastralLayer.setMap(map);  
-            btn.className='m-type-btn active';   
-            isDistrictOn=true; 
+        if (isDistrictOn) {
+            cadastralLayer.setMap(null);
+            btn.className = 'm-type-btn inactive';
+            isDistrictOn = false;
+        } else {
+            cadastralLayer.setMap(map);
+            btn.className = 'm-type-btn active';
+            isDistrictOn = true;
         }
         saveSettings();
     }
 
-    /* ── 유틸 및 기타 기능 ── */
+    /* ═══════════════════════════════════════════════════════════
+       [필터링] currentSites → 화면에 보일 사이트만 산출
+       └ 색상 + 부재 + 키워드 + 조회방식 적용
+       └ 좌표는 viewMode에 따라 addrLatLng 또는 poleLatLng 사용
+    ═══════════════════════════════════════════════════════════ */
     function getFilteredSites() {
         var results = [];
         currentSites.forEach(function(s) {
+            // 1) 색상 + 부재 필터 (부재면 색상 필터 무시 → 항상 보이게)
             var colorOk  = s.isAbsent || activeColorFilters.has(s.colorCode || 1);
             var absentOk = absentFilter === 'all'
                 || (absentFilter === 'yes' && s.isAbsent)
                 || (absentFilter === 'no'  && !s.isAbsent);
             if (!colorOk || !absentOk) return;
 
+            // 2) 키워드 부분일치 (제목/원본주소/매칭주소/인입주주소)
             if (quickSearchKeyword) {
                 var t  = (s.title    || "").toLowerCase();
                 var a1 = (s.addrText || "").toLowerCase();
@@ -511,6 +595,10 @@
                     && !a2.includes(quickSearchKeyword) && !a3.includes(quickSearchKeyword)) return;
             }
 
+            // 3) 조회 방식별 좌표 결정
+            //    - mixed: 주소 우선 → 없으면 인입주
+            //    - address: 주소 좌표 있을 때만
+            //    - pole: 인입주 좌표 있을 때만
             var activeData = null;
             if (searchTypeFilter === 'mixed') {
                 if      (s.addrLatLng) activeData = { ...s, lat:s.addrLatLng.lat, lng:s.addrLatLng.lng, addr:s.addrLatLng.addrStr, viewMode:'address' };
@@ -525,8 +613,12 @@
         return results;
     }
 
+    /* ═══════════════════════════════════════════════════════════
+       [메뉴 패널 접기/펴기]
+    ═══════════════════════════════════════════════════════════ */
     function toggleMenu() {
-        var box = document.getElementById('upload-box'), btn = document.getElementById('toggle-btn');
+        var box = document.getElementById('upload-box'),
+            btn = document.getElementById('toggle-btn');
         box.classList.toggle('collapsed');
         btn.innerText = box.classList.contains('collapsed') ? '메뉴 펴기' : '접기 ▲';
     }
@@ -536,17 +628,22 @@
         d.style.display = d.style.display === 'none' ? 'block' : 'none';
     }
 
+    /** 주소 변환 실패 항목 목록 표시 */
     function renderFailedListUI() {
-        var section = document.getElementById('failed-section');
-        var countSpan = document.getElementById('fail-count');
+        var section    = document.getElementById('failed-section');
+        var countSpan  = document.getElementById('fail-count');
         var contentDiv = document.getElementById('failed-list-content');
+
         var fails = [];
         currentSites.forEach(s => {
             if (!s.addrLatLng && !s.poleLatLng)     fails.push({ ...s, reason:"주소/인입주 모두 인식 불가" });
             else if (!s.addrLatLng && s.poleLatLng) fails.push({ ...s, reason:"주소 미흡 (인입주 대체)" });
         });
-        if (!fails.length) { section.style.display='none'; return; }
-        section.style.display='block'; countSpan.innerText=fails.length;
+
+        if (!fails.length) { section.style.display = 'none'; return; }
+
+        section.style.display = 'block';
+        countSpan.innerText = fails.length;
         contentDiv.innerHTML = fails.map(f =>
             `<div class="failed-item"><b>${f.title}</b> <span style="color:var(--danger);font-weight:700;">[${f.reason}]</span><br>
             <span style="color:#666;">입력주소: ${f.addrText||'없음'}</span><br>
@@ -554,107 +651,158 @@
         ).join('');
     }
 
+    /* ═══════════════════════════════════════════════════════════
+       [공용 유틸]
+    ═══════════════════════════════════════════════════════════ */
+    /** 두 좌표 간 거리(km) - Haversine 공식 */
     function getDistance(lat1, lon1, lat2, lon2) {
-        const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
-        const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-        return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+        const R = 6371,
+              dLat = (lat2-lat1) * Math.PI/180,
+              dLon = (lon2-lon1) * Math.PI/180;
+        const a = Math.sin(dLat/2)**2
+                + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
-    /* ── 네이버 지도 초기화 ── */
-    window.onload = function() {
-        map = new naver.maps.Map('map', {
-            center: new naver.maps.LatLng(35.9180,127.1241), zoom:12,
-            mapTypeControl:false, scaleControl:true, logoControl:true
+    /** 정렬 기준이 될 참조 좌표 산출
+     *  내 위치 → 마지막 사이트 좌표 → null 순서로 시도 */
+    function getReferenceCoord() {
+        if (myLocMarker) {
+            var p = myLocMarker.getPosition();
+            return { lat: p.y, lng: p.x }; // 네이버 LatLng: y=lat, x=lng
+        }
+        var valids = currentSites.filter(s => s.addrLatLng || s.poleLatLng);
+        if (valids.length) {
+            var t = valids[valids.length - 1];
+            return t.addrLatLng || t.poleLatLng;
+        }
+        return null;
+    }
+
+    /** 내 위치 마커 생성/이동 헬퍼 (track-btn / focusMyLocation 공용) */
+    function ensureMyLocMarker(loc) {
+        if (myLocMarker) { myLocMarker.setPosition(loc); return; }
+        myLocMarker = new naver.maps.Marker({
+            position: loc, map: map,
+            icon: {
+                content: '<div class="my-location-marker" style="pointer-events:none;">' +
+                         '<div id="direction-arrow" class="direction-arrow" style="display:none;"></div>' +
+                         '<div class="location-dot"></div></div>',
+                size: new naver.maps.Size(50, 50),
+                anchor: new naver.maps.Point(25, 25)
+            }
         });
-        cadastralLayer = new naver.maps.CadastralLayer();
-        currentInfoWindow = new naver.maps.InfoWindow({
-            backgroundColor:"white", borderWidth:0,
-            anchorSize:new naver.maps.Size(10,10),
-            pixelOffset:new naver.maps.Point(0,-10), zIndex:200
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       [네이버 지도 초기화]
+       └ window.onload 시점에 실행
+    ═══════════════════════════════════════════════════════════ */
+    window.onload = function() {
+        // 지도 생성: 전북 지역 중심, 줌 12
+        map = new naver.maps.Map('map', {
+            center: new naver.maps.LatLng(35.9180, 127.1241), zoom: 12,
+            mapTypeControl: false, scaleControl: true, logoControl: true
         });
 
-        // [핵심 변경점] 맵 초기화 직후 저장된 설정을 바로 불러옵니다.
+        // 지적편집도 레이어 (toggle 시 setMap만 변경)
+        cadastralLayer = new naver.maps.CadastralLayer();
+
+        // 단일 InfoWindow 인스턴스 재사용 (동시에 1개만 열림)
+        currentInfoWindow = new naver.maps.InfoWindow({
+            backgroundColor: "white", borderWidth: 0,
+            anchorSize: new naver.maps.Size(10, 10),
+            pixelOffset: new naver.maps.Point(0, -10), zIndex: 200
+        });
+
+        // 저장된 설정 복구 (지도 객체 준비된 후 실행해야 레이어 복구 가능)
         loadAndApplySettings();
 
+        // 지도 빈공간 클릭 시 인포윈도우 닫기
         naver.maps.Event.addListener(map, 'click', function() {
             if (currentInfoWindow.getMap()) currentInfoWindow.close();
         });
 
+        // 우클릭(데스크톱) → 마커 추가 모달
         naver.maps.Event.addListener(map, 'rightclick', function(e) {
             addManualMarker(e.coord);
         });
 
-        /* 🚀 롱프레스 (모바일용) */
+        /* ─── 모바일 롱프레스(0.6초) → 마커 추가 ───
+           네이버맵 자체 touch 이벤트 활용
+           - 멀티터치/이동/드래그 시작 시 모두 취소 */
         var rippleEl = document.getElementById('longpress-ripple');
         var lpTimer = null, lpMoved = false, lpCoord = null;
 
         function showRipple(x, y) {
             rippleEl.style.left = x + 'px';
-            rippleEl.style.top = y + 'px';
+            rippleEl.style.top  = y + 'px';
             rippleEl.classList.add('active');
         }
-        function hideRipple() {
-            rippleEl.classList.remove('active');
-        }
+        function hideRipple() { rippleEl.classList.remove('active'); }
 
         naver.maps.Event.addListener(map, 'touchstart', function(e) {
             var pe = e.pointerEvent;
+            // 멀티터치(핀치줌) 감지 시 롱프레스 취소
             if (pe && pe.touches && pe.touches.length > 1) {
                 clearTimeout(lpTimer); hideRipple(); lpMoved = true; return;
             }
-            
             lpMoved = false;
             lpCoord = e.coord;
 
+            // 리플 표시용 화면 좌표 추출
             var clientX = (pe && pe.touches) ? pe.touches[0].clientX : (pe ? pe.clientX : 0);
             var clientY = (pe && pe.touches) ? pe.touches[0].clientY : (pe ? pe.clientY : 0);
             if (clientX > 0 && clientY > 0) showRipple(clientX, clientY);
 
             lpTimer = setTimeout(function() {
                 if (lpMoved) return;
-                if (navigator.vibrate) navigator.vibrate(50);
+                if (navigator.vibrate) navigator.vibrate(50); // 햅틱 피드백
                 hideRipple();
                 addManualMarker(lpCoord);
             }, 600);
         });
 
-        naver.maps.Event.addListener(map, 'touchmove', function(e) {
-            lpMoved = true; clearTimeout(lpTimer); hideRipple();
+        // 터치 이동/종료/드래그 시작 → 롱프레스 취소
+        naver.maps.Event.addListener(map, 'touchmove',  function() { lpMoved = true; clearTimeout(lpTimer); hideRipple(); });
+        naver.maps.Event.addListener(map, 'touchend',   function() { clearTimeout(lpTimer); hideRipple(); });
+        naver.maps.Event.addListener(map, 'dragstart',  function() { lpMoved = true; clearTimeout(lpTimer); hideRipple(); });
+
+        /* 백그라운드 → 포그라운드 복귀 시 지도 리사이즈 보정
+           (모바일 브라우저 탭 전환 후 회색 화면 방지) */
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible' && map) {
+                setTimeout(() => { naver.maps.Event.trigger(map, 'resize'); map.setCenter(map.getCenter()); }, 100);
+            }
         });
-        
-        naver.maps.Event.addListener(map, 'touchend', function(e) {
-            clearTimeout(lpTimer); hideRipple();
-        });
-        
-        naver.maps.Event.addListener(map, 'dragstart', function(e) {
-            lpMoved = true; clearTimeout(lpTimer); hideRipple();
+        window.addEventListener('focus', function() {
+            if (map) setTimeout(() => { naver.maps.Event.trigger(map, 'resize'); map.setCenter(map.getCenter()); }, 100);
         });
 
-        document.addEventListener('visibilitychange',function(){
-            if(document.visibilityState==='visible'&&map) setTimeout(()=>{naver.maps.Event.trigger(map,'resize');map.setCenter(map.getCenter());},100);
-        });
-        window.addEventListener('focus',function(){
-            if(map) setTimeout(()=>{naver.maps.Event.trigger(map,'resize');map.setCenter(map.getCenter());},100);
-        });
-
+        // 저장된 마커 데이터 복구
         var saved = localStorage.getItem('kesco_map_data');
         if (saved) {
             var parsed = JSON.parse(saved);
-            if (parsed.length>0 && parsed[0].addrLatLng===undefined && parsed[0].lat!==undefined) {
-                localStorage.removeItem('kesco_map_data'); currentSites=[];
+            // 구버전 데이터 구조 감지 시 폐기
+            if (parsed.length > 0 && parsed[0].addrLatLng === undefined && parsed[0].lat !== undefined) {
+                localStorage.removeItem('kesco_map_data');
+                currentSites = [];
             } else {
-                parsed.forEach(s => { if(s.originalColorCode){ s.colorCode=s.originalColorCode; delete s.originalColorCode; } });
-                currentSites=parsed;
+                // 레거시 originalColorCode → colorCode 마이그레이션
+                parsed.forEach(s => { if (s.originalColorCode) { s.colorCode = s.originalColorCode; delete s.originalColorCode; } });
+                currentSites = parsed;
             }
             drawMarkers();
         }
     };
 
-    /* ── 수동 마커 추가 모달 동작 ── */
+    /* ═══════════════════════════════════════════════════════════
+       [수동 마커 추가] 모달 → 좌표→주소 역지오코딩 → 등록
+    ═══════════════════════════════════════════════════════════ */
     function addManualMarker(latLng) {
-        pendingMarkerCoord = latLng; 
+        pendingMarkerCoord = latLng;
         document.getElementById('modal-input-title').value = '';
-        document.getElementById('modal-input-memo').value = '';
+        document.getElementById('modal-input-memo').value  = '';
         document.getElementById('custom-modal').style.display = 'flex';
         setTimeout(() => document.getElementById('modal-input-title').focus(), 100);
     }
@@ -666,9 +814,8 @@
 
     function confirmMarkerModal() {
         var title = document.getElementById('modal-input-title').value.trim();
-        var memo = document.getElementById('modal-input-memo').value.trim();
-
-        if(!title) {
+        var memo  = document.getElementById('modal-input-memo').value.trim();
+        if (!title) {
             alert("상호를 입력해주세요.");
             document.getElementById('modal-input-title').focus();
             return;
@@ -677,181 +824,295 @@
         document.getElementById('custom-modal').style.display = 'none';
         var latLng = pendingMarkerCoord;
 
+        // 좌표 → 주소 역변환 (지번 우선, 없으면 도로명)
         naver.maps.Service.reverseGeocode({
             coords: latLng,
             orders: [naver.maps.Service.OrderType.ROAD_ADDR, naver.maps.Service.OrderType.ADDR].join(',')
         }, function(status, response) {
             var addrStr = "수동 등록 지점";
-            if (status === naver.maps.Service.Status.OK && response.v2.address)
+            if (status === naver.maps.Service.Status.OK && response.v2.address) {
                 addrStr = response.v2.address.jibunAddress || response.v2.address.roadAddress;
-
+            }
             currentSites.push({
-                id: crypto.randomUUID(), title: title, addrText: addrStr, colorCode: 2, poleNum: "",
+                id: crypto.randomUUID(),
+                title: title,
+                addrText: addrStr,
+                colorCode: 2,            // 수동 추가는 기본 빨강
+                poleNum: "",
+                // 네이버 LatLng: y=lat, x=lng
                 addrLatLng: { lat: latLng.y, lng: latLng.x, addrStr: addrStr },
-                poleLatLng: null, isAbsent: false, memo: memo || ""
+                poleLatLng: null,
+                isAbsent: false,
+                memo: memo || ""
             });
             saveAndRender();
         });
     }
 
-    /* ── 인입주 조회 ── */
+    /* ═══════════════════════════════════════════════════════════
+       [인입주 단일 조회]
+       └ 8자리 입력 → 4자리 prefix CSV 다운로드
+       └ 동일 번호 다중 결과면 참조 좌표 기준 최단거리 1건만 채택
+    ═══════════════════════════════════════════════════════════ */
     async function searchPole() {
-        var poleNum=document.getElementById('pole-input').value.toUpperCase().trim();
-        if(poleNum.length!==8){alert("인입주번호 8자리를 입력해주세요.");return;}
-        var st=document.getElementById('status'); st.innerText="검색 중...";
-        var url=`https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${poleNum.substring(0,4)}.csv?t=${Date.now()}`;
+        var poleNum = document.getElementById('pole-input').value.toUpperCase().trim();
+        if (poleNum.length !== 8) { alert("인입주번호 8자리를 입력해주세요."); return; }
+
+        var st = document.getElementById('status');
+        st.innerText = "검색 중...";
+
+        // 캐시 회피용 timestamp
+        var url = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${poleNum.substring(0,4)}.csv?t=${Date.now()}`;
+
         try {
-            var res=await fetch(url);
-            if(!res.ok){alert("데이터를 찾을 수 없습니다.");st.innerText="조회 실패";return;}
-            var lines=(await res.text()).trim().split('\n'); var found=[];
-            for(var i=1;i<lines.length;i++){
-                var cols=lines[i].split(',');
-                if(cols[0]&&cols[0].trim().toUpperCase()===poleNum){
-                    var lng=parseFloat(cols[2]),lat=parseFloat(cols[3]);
-                    if(!isNaN(lat)&&!isNaN(lng)) found.push({meshno:cols[0].trim(),addr:cols[1]?cols[1].trim():"주소 없음",lng,lat});
+            var res = await fetch(url);
+            if (!res.ok) { alert("데이터를 찾을 수 없습니다."); st.innerText = "조회 실패"; return; }
+
+            var lines = (await res.text()).trim().split('\n');
+            var found = [];
+
+            // CSV: 0=인입주번호, 1=주소, 2=경도(lng), 3=위도(lat)
+            for (var i = 1; i < lines.length; i++) {
+                var cols = lines[i].split(',');
+                if (cols[0] && cols[0].trim().toUpperCase() === poleNum) {
+                    var lng = parseFloat(cols[2]), lat = parseFloat(cols[3]);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        found.push({ meshno: cols[0].trim(), addr: cols[1] ? cols[1].trim() : "주소 없음", lng, lat });
+                    }
                 }
             }
-            if(!found.length){alert("번호를 찾을 수 없습니다.");st.innerText="조회 실패";return;}
-            var ref=myLocMarker?{lat:myLocMarker.getPosition().y,lng:myLocMarker.getPosition().x}:null;
-            if(!ref){var v=currentSites.filter(s=>s.addrLatLng||s.poleLatLng);if(v.length){var tgt=v[v.length-1];ref=tgt.addrLatLng||tgt.poleLatLng;}}
-            if(ref){found.sort((a,b)=>getDistance(ref.lat,ref.lng,a.lat,a.lng)-getDistance(ref.lat,ref.lng,b.lat,b.lng));found=[found[0]];}
-            found.forEach(f=>{
-                currentSites.push({id:crypto.randomUUID(),title:"전주: "+f.meshno,addrText:f.addr,colorCode:7,poleNum:f.meshno,
-                    addrLatLng:null,poleLatLng:{lat:f.lat,lng:f.lng,addrStr:f.addr},isAbsent:false,memo:"인입주 단일 검색 추가"});
+
+            if (!found.length) { alert("번호를 찾을 수 없습니다."); st.innerText = "조회 실패"; return; }
+
+            // 다중 결과 → 참조 좌표 기준 최단거리 1건
+            var ref = getReferenceCoord();
+            if (ref) {
+                found.sort((a,b) => getDistance(ref.lat,ref.lng,a.lat,a.lng) - getDistance(ref.lat,ref.lng,b.lat,b.lng));
+                found = [found[0]];
+            }
+
+            found.forEach(function(f) {
+                currentSites.push({
+                    id: crypto.randomUUID(),
+                    title: "전주: " + f.meshno,
+                    addrText: f.addr,
+                    colorCode: 7,
+                    poleNum: f.meshno,
+                    addrLatLng: null,
+                    poleLatLng: { lat: f.lat, lng: f.lng, addrStr: f.addr },
+                    isAbsent: false,
+                    memo: "인입주 단일 검색 추가"
+                });
             });
-            toggleSearchTypeFilter('mixed'); saveAndRender();
-            map.setCenter(new naver.maps.LatLng(found[0].lat,found[0].lng)); map.setZoom(17);
-            st.innerText=ref?"최단거리 조회 성공!":"조회 성공!";
-        } catch(e){alert(`조회 에러: ${e.message}`);st.innerText="오류 발생";}
+
+            // 검색 결과 보이도록 혼합 모드로 강제 전환
+            toggleSearchTypeFilter('mixed');
+            saveAndRender();
+
+            // 카메라 이동
+            map.setCenter(new naver.maps.LatLng(found[0].lat, found[0].lng));
+            map.setZoom(17);
+            st.innerText = ref ? "최단거리 조회 성공!" : "조회 성공!";
+        } catch(e) {
+            alert(`조회 에러: ${e.message}`);
+            st.innerText = "오류 발생";
+        }
     }
 
-    /* ── 엑셀 업로드 ── */
+    /* ═══════════════════════════════════════════════════════════
+       [엑셀 업로드 → 일괄 등록]
+       1) A:상호  B:주소  C:색상코드  D:인입주
+       2) 주소 → 좌표 (40ms 간격 throttling)
+       3) 인입주 prefix별 CSV 다운로드 → poleDict 구성
+       4) 각 사이트에 좌표 매핑
+       5) 표시 후 fitBounds로 카메라 핏
+    ═══════════════════════════════════════════════════════════ */
     document.getElementById('upload-btn').onclick = function() {
-        var file=document.getElementById('excel-file').files[0];
-        if(!file)return alert("파일을 선택해주세요.");
-        var reader=new FileReader();
-        reader.onload=async function(e){
-            var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
-            var json=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
-            var rows=json.slice(1).filter(r=>r[0]||r[1]||r[3]);
-            if(!rows.length){alert("유효한 데이터가 없습니다.");return;}
+        var file = document.getElementById('excel-file').files[0];
+        if (!file) return alert("파일을 선택해주세요.");
 
-            document.getElementById('status').innerText="주소 변환 시작...";
-            var newSites=rows.map(r=>({
-                id:crypto.randomUUID(), title:r[0]?r[0].toString():'이름없음',
-                addrText:r[1]?r[1].toString().trim():'', colorCode:r[2]||1,
-                poleNum:r[3]?r[3].toString().toUpperCase().trim():'',
-                addrLatLng:null, poleLatLng:null, isAbsent:false, memo:""
+        var reader = new FileReader();
+        reader.onload = async function(e) {
+            // ─ (1) 엑셀 → JSON ─
+            var wb   = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+            var json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1 });
+            var rows = json.slice(1).filter(r => r[0] || r[1] || r[3]); // 헤더 제외, 빈 행 제거
+            if (!rows.length) { alert("유효한 데이터가 없습니다."); return; }
+
+            document.getElementById('status').innerText = "주소 변환 시작...";
+
+            // ─ (2) 사이트 객체 생성 ─
+            var newSites = rows.map(r => ({
+                id:        crypto.randomUUID(),
+                title:     r[0] ? r[0].toString() : '이름없음',
+                addrText:  r[1] ? r[1].toString().trim() : '',
+                colorCode: r[2] || 1,
+                poleNum:   r[3] ? r[3].toString().toUpperCase().trim() : '',
+                addrLatLng: null,
+                poleLatLng: null,
+                isAbsent: false,
+                memo: ""
             }));
 
-            await Promise.all(newSites.map((site,idx)=>new Promise(resolve=>{
-                if(!site.addrText)return resolve();
-                setTimeout(()=>{
-                    naver.maps.Service.geocode({query:site.addrText},function(status,response){
-                        if(status===naver.maps.Service.Status.OK&&response.v2&&response.v2.addresses.length>0){
-                            var a=response.v2.addresses[0], isExact=false;
-                            if(a.addressElements){
-                                for(var k=0;k<a.addressElements.length;k++){
-                                    var t=a.addressElements[k].types;
-                                    if((t.includes('JIBUN')||t.includes('BUILDING_NUMBER'))&&a.addressElements[k].longName){isExact=true;break;}
+            // ─ (3) 주소 지오코딩 (병렬, 40ms 간격) ─
+            //   네이버 geocoder 부하 방지용 throttling
+            await Promise.all(newSites.map((site, idx) => new Promise(resolve => {
+                if (!site.addrText) return resolve();
+                setTimeout(() => {
+                    naver.maps.Service.geocode({ query: site.addrText }, function(status, response) {
+                        if (status === naver.maps.Service.Status.OK && response.v2 && response.v2.addresses.length > 0) {
+                            var a = response.v2.addresses[0], isExact = false;
+                            // addressElements에서 JIBUN 또는 BUILDING_NUMBER가 있으면 정확한 주소로 인정
+                            if (a.addressElements) {
+                                for (var k = 0; k < a.addressElements.length; k++) {
+                                    var t = a.addressElements[k].types;
+                                    if ((t.includes('JIBUN') || t.includes('BUILDING_NUMBER')) && a.addressElements[k].longName) {
+                                        isExact = true; break;
+                                    }
                                 }
                             }
-                            if(isExact) site.addrLatLng={lat:parseFloat(a.y),lng:parseFloat(a.x),addrStr:site.addrText};
+                            if (isExact) site.addrLatLng = { lat: parseFloat(a.y), lng: parseFloat(a.x), addrStr: site.addrText };
                         }
                         resolve();
                     });
-                },idx*40);
+                }, idx * 40);
             })));
 
-            document.getElementById('status').innerText="인입주 백업 정보 다운로드 중...";
-            var polePrefixes=[...new Set(newSites.filter(s=>s.poleNum&&s.poleNum.length===8).map(s=>s.poleNum.substring(0,4)))];
-            var poleDict={};
-            for(var i=0;i<polePrefixes.length;i++){
-                try{
-                    var r=await fetch(`https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${polePrefixes[i]}.csv?t=${Date.now()}`);
-                    if(r.ok){
-                        (await r.text()).trim().split('\n').slice(1).forEach(line=>{
-                            var cols=line.split(',');
-                            if(cols.length>=4&&cols[0]){
-                                var pn=cols[0].trim().toUpperCase(),lng=parseFloat(cols[2]),lat=parseFloat(cols[3]);
-                                if(!isNaN(lat)&&!isNaN(lng)){if(!poleDict[pn])poleDict[pn]=[];poleDict[pn].push({lat,lng,addr:cols[1]?cols[1].trim():"NDIS 주소 없음"});}
+            // ─ (4) 인입주 백업 좌표 다운로드 ─
+            document.getElementById('status').innerText = "인입주 백업 정보 다운로드 중...";
+            var polePrefixes = [...new Set(
+                newSites.filter(s => s.poleNum && s.poleNum.length === 8).map(s => s.poleNum.substring(0,4))
+            )];
+            var poleDict = {}; // { 인입주번호: [{lat,lng,addr}, ...] }
+
+            for (var i = 0; i < polePrefixes.length; i++) {
+                try {
+                    var r = await fetch(`https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${polePrefixes[i]}.csv?t=${Date.now()}`);
+                    if (r.ok) {
+                        (await r.text()).trim().split('\n').slice(1).forEach(line => {
+                            var cols = line.split(',');
+                            if (cols.length >= 4 && cols[0]) {
+                                var pn  = cols[0].trim().toUpperCase(),
+                                    lng = parseFloat(cols[2]),
+                                    lat = parseFloat(cols[3]);
+                                if (!isNaN(lat) && !isNaN(lng)) {
+                                    if (!poleDict[pn]) poleDict[pn] = [];
+                                    poleDict[pn].push({ lat, lng, addr: cols[1] ? cols[1].trim() : "NDIS 주소 없음" });
+                                }
                             }
                         });
                     }
-                }catch(e){}
+                } catch(e) { /* 일부 실패해도 진행 */ }
             }
 
-            var ref=null;
-            if(myLocMarker)ref={lat:myLocMarker.getPosition().y,lng:myLocMarker.getPosition().x};
-            else{var va=newSites.filter(s=>s.addrLatLng);if(va.length){var sl=0,sg=0;va.forEach(s=>{sl+=s.addrLatLng.lat;sg+=s.addrLatLng.lng;});ref={lat:sl/va.length,lng:sg/va.length};}}
-            newSites.forEach(site=>{
-                if(site.poleNum&&poleDict[site.poleNum]?.length){
-                    var m=poleDict[site.poleNum];
-                    if(ref)m.sort((a,b)=>getDistance(ref.lat,ref.lng,a.lat,a.lng)-getDistance(ref.lat,ref.lng,b.lat,b.lng));
-                    site.poleLatLng={lat:m[0].lat,lng:m[0].lng,addrStr:m[0].addr};
+            // ─ (5) 동일 인입주번호 중 가장 가까운 좌표 채택 ─
+            //   참조: 내 위치 우선 → 없으면 주소 매칭된 것들의 평균
+            var ref = null;
+            if (myLocMarker) {
+                ref = { lat: myLocMarker.getPosition().y, lng: myLocMarker.getPosition().x };
+            } else {
+                var va = newSites.filter(s => s.addrLatLng);
+                if (va.length) {
+                    var sl=0, sg=0;
+                    va.forEach(s => { sl += s.addrLatLng.lat; sg += s.addrLatLng.lng; });
+                    ref = { lat: sl/va.length, lng: sg/va.length };
+                }
+            }
+            newSites.forEach(site => {
+                if (site.poleNum && poleDict[site.poleNum]?.length) {
+                    var m = poleDict[site.poleNum];
+                    if (ref) m.sort((a,b) => getDistance(ref.lat,ref.lng,a.lat,a.lng) - getDistance(ref.lat,ref.lng,b.lat,b.lng));
+                    site.poleLatLng = { lat: m[0].lat, lng: m[0].lng, addrStr: m[0].addr };
                 }
             });
 
-            currentSites=newSites; quickSearchKeyword="";
-            document.getElementById('quick-search-input').value="";
+            // ─ (6) 적용 + 화면 핏 ─
+            currentSites = newSites;
+            quickSearchKeyword = "";
+            document.getElementById('quick-search-input').value = "";
             saveAndRender();
-            var actives=getFilteredSites();
-            if(actives.length){var bounds=new naver.maps.LatLngBounds();actives.forEach(s=>bounds.extend(new naver.maps.LatLng(s.lat,s.lng)));map.fitBounds(bounds,{padding:new naver.maps.Point(40,40)});}
-            toggleMenu();
+
+            var actives = getFilteredSites();
+            if (actives.length) {
+                var bounds = new naver.maps.LatLngBounds();
+                actives.forEach(s => bounds.extend(new naver.maps.LatLng(s.lat, s.lng)));
+                map.fitBounds(bounds, { padding: new naver.maps.Point(40,40) });
+            }
+            toggleMenu(); // 작업 후 메뉴 자동 접기
         };
         reader.readAsArrayBuffer(file);
     };
 
-    /* ── 방향 감지 (화살표 활성화) ── */
+    /* ═══════════════════════════════════════════════════════════
+       [디바이스 방향(나침반) → 화살표 회전]
+       └ iOS Safari: webkitCompassHeading
+       └ Android: deviceorientation의 alpha 사용
+    ═══════════════════════════════════════════════════════════ */
     function handleOrientation(event) {
-        var heading=null;
-        if(event.webkitCompassHeading!==undefined) heading=event.webkitCompassHeading;
-        else if(event.absolute===true&&event.alpha!==null){isAbsoluteOrientation=true;heading=360-event.alpha;}
-        else if(!isAbsoluteOrientation&&event.alpha!==null) heading=360-event.alpha;
-        
-        if(heading!==null){
-            var arr=document.getElementById('direction-arrow');
-            if(arr) {
-                arr.style.display = 'block';
-                arr.style.transform='rotate('+heading+'deg)';
+        var heading = null;
+        if (event.webkitCompassHeading !== undefined) {
+            heading = event.webkitCompassHeading;
+        } else if (event.alpha !== null) {
+            heading = 360 - event.alpha;
+        }
+
+        if (heading !== null) {
+            var arr = document.getElementById('direction-arrow');
+            if (arr) {
+                arr.style.display   = 'block';
+                arr.style.transform = 'rotate(' + heading + 'deg)';
             }
         }
     }
 
-    /* ── 실시간 위치 추적 (상단 메뉴 버튼용) ── */
+    /* ═══════════════════════════════════════════════════════════
+       [위치 추적 토글]
+    ═══════════════════════════════════════════════════════════ */
     document.getElementById('track-btn').onclick = function() {
-        if(watchId){
-            navigator.geolocation.clearWatch(watchId); watchId=null;
-            window.removeEventListener('deviceorientationabsolute',handleOrientation,true);
-            window.removeEventListener('deviceorientation',handleOrientation,true);
-            isAbsoluteOrientation=false;
-            if(myLocMarker){myLocMarker.setMap(null);myLocMarker=null;}
-            this.innerText="📡 위치 표기 시작"; this.className='btn btn-outline';
+        if (watchId) {
+            // ── 추적 중단 ──
+            navigator.geolocation.clearWatch(watchId); watchId = null;
+            window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+            window.removeEventListener('deviceorientation',         handleOrientation, true);
+
+            if (myLocMarker) { myLocMarker.setMap(null); myLocMarker = null; }
+            this.innerText = "📡 위치 표기 시작";
+            this.className = 'btn btn-outline';
             document.getElementById('my-loc-fab').classList.remove('active');
         } else {
-            if(window.DeviceOrientationEvent&&typeof DeviceOrientationEvent.requestPermission==='function')
-                DeviceOrientationEvent.requestPermission().then(res=>{if(res==='granted')window.addEventListener('deviceorientation',handleOrientation,true);});
-            else{window.addEventListener('deviceorientationabsolute',handleOrientation,true);window.addEventListener('deviceorientation',handleOrientation,true);}
-            if(navigator.geolocation){
-                watchId=navigator.geolocation.watchPosition(function(pos){
-                    var loc=new naver.maps.LatLng(pos.coords.latitude,pos.coords.longitude);
-                    if(!myLocMarker){
-                        myLocMarker=new naver.maps.Marker({position:loc,map,
-                            icon:{content:'<div class="my-location-marker" style="pointer-events:none;"><div id="direction-arrow" class="direction-arrow" style="display:none;"></div><div class="location-dot"></div></div>',
-                                size:new naver.maps.Size(50,50),anchor:new naver.maps.Point(25,25)}});
-                        map.setCenter(loc);
-                    } else { myLocMarker.setPosition(loc); }
-                },null,{enableHighAccuracy:true});
-                this.innerText="🛑 표기 중단"; this.className='btn btn-primary';
+            // ── 추적 시작 ──
+            // iOS 13+는 권한 요청 필요
+            if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission().then(res => {
+                    if (res === 'granted') window.addEventListener('deviceorientation', handleOrientation, true);
+                });
+            } else {
+                window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                window.addEventListener('deviceorientation',         handleOrientation, true);
+            }
+
+            if (navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition(function(pos) {
+                    var loc = new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+                    var isFirst = !myLocMarker;
+                    ensureMyLocMarker(loc);
+                    if (isFirst) map.setCenter(loc); // 처음 잡힐 때만 카메라 이동
+                }, null, { enableHighAccuracy: true });
+
+                this.innerText = "🛑 표기 중단";
+                this.className = 'btn btn-primary';
                 document.getElementById('my-loc-fab').classList.add('active');
             }
         }
     };
 
-    /* ── 내 위치 즉시 이동 (우측 하단 FAB 전용) ── */
+    /* ═══════════════════════════════════════════════════════════
+       [내 위치 FAB] 한 번 클릭 시 카메라 이동, 추적 안 켜져있으면 자동 시작
+    ═══════════════════════════════════════════════════════════ */
     function focusMyLocation() {
         if (!navigator.geolocation) { alert("위치 정보가 지원되지 않는 환경입니다."); return; }
-        
+
+        // 이미 추적 중이면 마지막 위치로 카메라만 이동
         if (watchId && myLocMarker) {
             map.setCenter(myLocMarker.getPosition());
             map.setZoom(16);
@@ -862,200 +1123,304 @@
             var loc = new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
             map.setCenter(loc);
             map.setZoom(16);
+            ensureMyLocMarker(loc);
 
-            if(!myLocMarker){
-                myLocMarker = new naver.maps.Marker({
-                    position: loc, map: map,
-                    icon: {
-                        content: '<div class="my-location-marker" style="pointer-events:none;"><div id="direction-arrow" class="direction-arrow" style="display:none;"></div><div class="location-dot"></div></div>',
-                        size: new naver.maps.Size(50, 50), anchor: new naver.maps.Point(25, 25)
-                    }
-                });
-            } else {
-                myLocMarker.setPosition(loc);
-            }
-            
-            if(!watchId) {
-                document.getElementById('track-btn').click();
-            }
-        }, function(err) {
+            // 아직 추적 중이 아니면 시작
+            if (!watchId) document.getElementById('track-btn').click();
+        }, function() {
             alert("위치 정보를 가져올 수 없습니다. 권한을 확인해주세요.");
         }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
     }
 
-    /* ── 라벨 생성 ── */
+    /* ═══════════════════════════════════════════════════════════
+       [라벨 HTML 생성]
+       └ 너무 길면 끝 3토큰만 사용
+    ═══════════════════════════════════════════════════════════ */
     function buildLabelHtml(labelText, color) {
-        if(!isLabelOn||!labelText)return '';
-        var cleaned=labelText.replace(/(\s+[a-zA-Z]+)+$/g,'').trim();
-        var parts=cleaned.split(/\s+/);
-        var short=parts.length>3?parts.slice(-3).join(' '):cleaned;
+        if (!isLabelOn || !labelText) return '';
+        // 끝의 영문 토큰 제거 후 마지막 3단어만 추출
+        var cleaned = labelText.replace(/(\s+[a-zA-Z]+)+$/g, '').trim();
+        var parts   = cleaned.split(/\s+/);
+        var short   = parts.length > 3 ? parts.slice(-3).join(' ') : cleaned;
         return `<div class="marker-label" style="border-top:2px solid ${color};">${short}</div>`;
     }
 
-    /* ── 마커 생성 ── */
+    /* ═══════════════════════════════════════════════════════════
+       [마커 SVG 생성]
+       └ pole(인입주): 다이아몬드(💎) 모양
+       └ address(주소): 카카오맵 풍 별(⭐) 모양 핀
+       └ 모든 좌표는 viewBox 24×24 기준
+    ═══════════════════════════════════════════════════════════ */
+    function buildMarkerSvgPath(isPole) {
+        if (isPole) {
+            // 다이아몬드: 위쪽 사다리꼴 + 아래쪽 V자
+            return `<path d="M6 0 L18 0 L24 12 L12 24 L0 12 L6 0 Z" fill="{COLOR}"/>
+                    <circle cx="12" cy="9" r="3" fill="white"/>`;
+        }
+        // 둥근 핀 + 5각 별 (24px viewBox 기준)
+        return `
+            <path d="M12 0 C5.373 0 0 5.373 0 12 C0 19.5 12 24 12 24 C12 24 24 19.5 24 12 C24 5.373 18.627 0 12 0 Z"
+                  fill="{COLOR}"/>
+            <path d="M12 5.5 L13.4 9 L17 9.2 L14.2 11.6 L15.1 15 L12 13 L8.9 15 L9.8 11.6 L7 9.2 L10.6 9 Z"
+                  fill="white"/>
+        `;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       [마커 객체 빌드]
+       └ 같은 좌표(소수점 6자리)에 여러 사이트가 겹치면 그룹화
+       └ 각 그룹당 1개 마커, 클릭 시 인포윈도우에 모두 나열
+    ═══════════════════════════════════════════════════════════ */
     function buildMarkerObjects(sites) {
-        var groups={};
-        sites.forEach(function(s){
-            if(s.lat==null||s.lng==null||isNaN(s.lat)||isNaN(s.lng))return;
-            var key=Number(s.lat).toFixed(6)+","+Number(s.lng).toFixed(6);
-            if(!groups[key])groups[key]=[]; groups[key].push(s);
+        // 1) 동일 좌표끼리 그룹화
+        var groups = {};
+        sites.forEach(function(s) {
+            if (s.lat == null || s.lng == null || isNaN(s.lat) || isNaN(s.lng)) return;
+            var key = Number(s.lat).toFixed(6) + "," + Number(s.lng).toFixed(6);
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(s);
         });
 
-        return Object.values(groups).map(function(group){
-            var first=group[0];
-            var hasAbsent=group.some(s=>s.isAbsent);
-            var mColor=hasAbsent ? colorMap[ABSENT_COLOR_CODE] : (colorMap[first.colorCode]||"#0055AA");
-            var isPole=first.viewMode==='pole';
+        // 2) 각 그룹 → 1개의 Marker
+        return Object.values(groups).map(function(group) {
+            var first     = group[0];
+            var hasAbsent = group.some(s => s.isAbsent);
+            // 한 명이라도 부재면 그룹 전체 보라색
+            var mColor    = hasAbsent ? colorMap[ABSENT_COLOR_CODE] : (colorMap[first.colorCode] || "#0055AA");
+            var isPole    = first.viewMode === 'pole';
 
-            var labelText=first.addr||first.addrText||first.title||'';
-            var labelHtml=buildLabelHtml(labelText,mColor);
+            // 라벨: 매칭주소 → 원본주소 → 제목 순
+            var labelText = first.addr || first.addrText || first.title || '';
+            var labelHtml = buildLabelHtml(labelText, mColor);
 
-            var svgPath=isPole
-                ?`<path d="M8 0 L22 0 L30 15 L15 40 L0 15 L8 0 Z" fill="${mColor}"/><circle cx="15" cy="12" r="5" fill="white"/>`
-                :`<path d="M15 0C6.716 0 0 6.716 0 15c0 11.25 15 25 15 25s15-13.75 15-25c0-8.284-6.716-15-15-15z" fill="${mColor}"/><circle cx="15" cy="15" r="6" fill="white"/>`;
+            // SVG (color 치환)
+            var svgPath  = buildMarkerSvgPath(isPole).replace(/\{COLOR\}/g, mColor);
+            var svgInner = `<svg width="${MARKER_W}" height="${MARKER_H}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${svgPath}</svg>`;
 
-            var markerContent=`<div style="position:relative;display:inline-block;text-align:center;">
+            // 마커 HTML (라벨 + 아이콘)
+            var markerContent = `<div style="position:relative;display:inline-block;text-align:center;">
                 ${labelHtml}
-                <img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">${svgPath}</svg>`)}"
-                     style="width:30px;height:40px;display:block;" />
+                <img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgInner)}"
+                     style="width:${MARKER_W}px;height:${MARKER_H}px;display:block;" />
             </div>`;
 
-            var m=new naver.maps.Marker({
-                position:new naver.maps.LatLng(first.lat,first.lng),
-                icon:{content:markerContent,size:new naver.maps.Size(30,40),anchor:new naver.maps.Point(15,40)}
+            // 네이버 Marker (anchor: 핀 끝이 좌표에 닿게)
+            var m = new naver.maps.Marker({
+                position: new naver.maps.LatLng(first.lat, first.lng),
+                icon: {
+                    content: markerContent,
+                    size:   new naver.maps.Size(MARKER_W, MARKER_H),
+                    anchor: new naver.maps.Point(MARKER_W/2, MARKER_H)
+                }
             });
 
-            /* 인포윈도우 */
-            var container=document.createElement('div'); container.className='iw-container';
-            container.style.cssText='padding:15px;border-radius:14px;width:250px;box-shadow:0 6px 24px rgba(0,0,0,0.15);background:#fff;border:1px solid var(--border);';
+            /* ─── 인포윈도우 컨테이너 ─── */
+            var container = document.createElement('div');
+            container.className = 'iw-container';
+            container.style.cssText = 'padding:15px;border-radius:14px;width:250px;box-shadow:0 6px 24px rgba(0,0,0,0.15);background:#fff;border:1px solid var(--border);';
 
-            var headerIcon=isPole?'💎':'💧';
-            var headerText=group.length>1?`<b>${headerIcon} ${first.title}</b> 외 ${group.length-1}건`:`<b>${headerIcon} ${first.title}</b>`;
-            var header=document.createElement('div');
-            header.style.cssText=`border-bottom:2.5px solid ${mColor};padding-bottom:8px;margin-bottom:8px;color:${mColor};font-size:13.5px;`;
-            header.innerHTML=headerText;
+            // 헤더
+            var headerIcon = isPole ? '💎' : '⭐';
+            var headerText = group.length > 1
+                ? `<b>${headerIcon} ${first.title}</b> 외 ${group.length-1}건`
+                : `<b>${headerIcon} ${first.title}</b>`;
+            var header = document.createElement('div');
+            header.style.cssText = `border-bottom:2.5px solid ${mColor};padding-bottom:8px;margin-bottom:8px;color:${mColor};font-size:13.5px;`;
+            header.innerHTML = headerText;
             container.appendChild(header);
 
-            if(group.length>1){
-                var bulkDelBtn=document.createElement('button');
-                bulkDelBtn.className='bulk-del-btn';
-                bulkDelBtn.innerText=`🗑️ 이 위치 ${group.length}건 전체 삭제`;
-                bulkDelBtn.onclick=function(){
-                    if(confirm(`이 위치에 겹쳐진 ${group.length}건을 모두 삭제하시겠습니까?`)){
-                        var ids=new Set(group.map(g=>g.id));
-                        currentSites=currentSites.filter(s=>!ids.has(s.id));
-                        if(currentInfoWindow.getMap())currentInfoWindow.close();
+            // 그룹 일괄 삭제 버튼
+            if (group.length > 1) {
+                var bulkDelBtn = document.createElement('button');
+                bulkDelBtn.className = 'bulk-del-btn';
+                bulkDelBtn.innerText = `🗑️ 이 위치 ${group.length}건 전체 삭제`;
+                bulkDelBtn.onclick = function() {
+                    if (confirm(`이 위치에 겹쳐진 ${group.length}건을 모두 삭제하시겠습니까?`)) {
+                        var ids = new Set(group.map(g => g.id));
+                        currentSites = currentSites.filter(s => !ids.has(s.id));
+                        if (currentInfoWindow.getMap()) currentInfoWindow.close();
                         saveAndRender();
                     }
                 };
                 container.appendChild(bulkDelBtn);
             }
 
-            var listArea=document.createElement('div'); listArea.style.cssText='max-height:320px;overflow-y:auto;';
+            // 그룹 내 각 항목 리스트
+            var listArea = document.createElement('div');
+            listArea.style.cssText = 'max-height:320px;overflow-y:auto;';
 
-            group.forEach(function(item){
-                var itemDiv=document.createElement('div'); itemDiv.className='iw-item';
-                var poleDisplay=item.poleNum?`<br><span style="color:var(--primary);">[인입주] ${item.poleNum}</span>`:'';
-                itemDiv.innerHTML=`<div style="font-weight:700;font-size:13px;">${item.title}</div><div style="font-size:11px;color:var(--text-muted);">${item.addr}${poleDisplay}</div>`;
+            group.forEach(function(item) {
+                var itemDiv = document.createElement('div');
+                itemDiv.className = 'iw-item';
+                var poleDisplay = item.poleNum ? `<br><span style="color:var(--primary);">[인입주] ${item.poleNum}</span>` : '';
+                itemDiv.innerHTML = `
+                    <div style="font-weight:700;font-size:13px;">${item.title}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">${item.addr}${poleDisplay}</div>
+                `;
 
-                var memoWrap=document.createElement('div');
-                var memoDisplay=document.createElement('div'); memoDisplay.className='memo-text'; memoDisplay.title='클릭하여 수정';
-                var memoEditor=document.createElement('div'); memoEditor.style.display='none';
-                var memoTA=document.createElement('textarea'); memoTA.className='memo-edit-area'; memoTA.value=item.memo||'';
-                var memoSave=document.createElement('button'); memoSave.className='memo-save-btn'; memoSave.innerText='저장';
+                /* ─── 메모 표시/편집 ─── */
+                var memoWrap    = document.createElement('div');
+                var memoDisplay = document.createElement('div');
+                memoDisplay.className = 'memo-text';
+                memoDisplay.title = '클릭하여 수정';
 
-                memoDisplay.innerText=item.memo?"📝 "+item.memo:"📝 메모 추가";
-                if(!item.memo) memoDisplay.style.cssText='font-size:11px;color:#aaa;margin:5px 0;font-style:italic;background:#f9f9f9;padding:6px 8px;border-radius:4px;border-left:3px solid #ccc;cursor:pointer;';
+                var memoEditor = document.createElement('div');
+                memoEditor.style.display = 'none';
+                var memoTA = document.createElement('textarea');
+                memoTA.className = 'memo-edit-area';
+                memoTA.value = item.memo || '';
+                var memoSave = document.createElement('button');
+                memoSave.className = 'memo-save-btn';
+                memoSave.innerText = '저장';
 
-                memoSave.onclick=function(){
-                    var ri=currentSites.find(s=>s.id===item.id);
-                    if(ri){
-                        ri.memo=memoTA.value.trim();
-                        memoDisplay.innerText=ri.memo?"📝 "+ri.memo:"📝 메모 추가";
-                        if(!ri.memo){memoDisplay.style.color='#aaa';memoDisplay.style.background='#f9f9f9';memoDisplay.style.borderLeftColor='#ccc';}
-                        else{memoDisplay.style.color='var(--success)';memoDisplay.style.background='var(--success-light)';memoDisplay.style.borderLeftColor='var(--success)';}
-                        saveAndRender(false);
+                memoDisplay.innerText = item.memo ? "📝 " + item.memo : "📝 메모 추가";
+                if (!item.memo) {
+                    memoDisplay.style.cssText = 'font-size:11px;color:#aaa;margin:5px 0;font-style:italic;background:#f9f9f9;padding:6px 8px;border-radius:4px;border-left:3px solid #ccc;cursor:pointer;';
+                }
+
+                // 저장 버튼: currentSites 원본 갱신
+                memoSave.onclick = function() {
+                    var ri = currentSites.find(s => s.id === item.id);
+                    if (ri) {
+                        ri.memo = memoTA.value.trim();
+                        memoDisplay.innerText = ri.memo ? "📝 " + ri.memo : "📝 메모 추가";
+                        if (!ri.memo) {
+                            memoDisplay.style.color = '#aaa';
+                            memoDisplay.style.background = '#f9f9f9';
+                            memoDisplay.style.borderLeftColor = '#ccc';
+                        } else {
+                            memoDisplay.style.color = 'var(--success)';
+                            memoDisplay.style.background = 'var(--success-light)';
+                            memoDisplay.style.borderLeftColor = 'var(--success)';
+                        }
+                        saveAndRender(false); // 메모 수정 시 다시 그릴 필요 없음
                     }
-                    memoEditor.style.display='none'; memoDisplay.style.display='block';
+                    memoEditor.style.display  = 'none';
+                    memoDisplay.style.display = 'block';
                 };
-                memoDisplay.onclick=function(){memoDisplay.style.display='none';memoEditor.style.display='block';memoTA.focus();};
-                memoEditor.append(memoTA,memoSave); memoWrap.append(memoDisplay,memoEditor); itemDiv.append(memoWrap);
-
-                var absLabel=document.createElement('label'); absLabel.className='absent-row';
-                var chk=document.createElement('input'); chk.type='checkbox'; chk.checked=item.isAbsent||false;
-                chk.onchange=function(){
-                    var ri=currentSites.find(s=>s.id===item.id);
-                    if(ri){
-                        ri.isAbsent=chk.checked;
-                        saveAndRender(true);
-                    }
+                memoDisplay.onclick = function() {
+                    memoDisplay.style.display = 'none';
+                    memoEditor.style.display  = 'block';
+                    memoTA.focus();
                 };
-                absLabel.append(chk,' 미점검 (부재)'); itemDiv.append(absLabel);
+                memoEditor.append(memoTA, memoSave);
+                memoWrap.append(memoDisplay, memoEditor);
+                itemDiv.append(memoWrap);
 
-                var g=document.createElement('div'); g.className='iw-btn-group';
-                var n=document.createElement('a'); n.className='nav-btn';
-                n.href=`https://map.naver.com/v5/directions/-/${item.lng},${item.lat},${encodeURIComponent(item.title)}/-/car`; n.target="_blank"; n.innerText="🚗 길찾기";
-                var rv=document.createElement('a'); rv.className='rv-btn';
-                rv.href=`https://map.naver.com/v5/?c=15,0,0,0,dh&p=${item.lng},${item.lat},180,0,0,0,Panorama`; rv.target="_blank"; rv.innerText="👁️ 로드뷰";
-                g.append(n,rv); itemDiv.append(g);
+                /* ─── 부재 체크박스 ─── */
+                var absLabel = document.createElement('label');
+                absLabel.className = 'absent-row';
+                var chk = document.createElement('input');
+                chk.type = 'checkbox';
+                chk.checked = item.isAbsent || false;
+                chk.onchange = function() {
+                    var ri = currentSites.find(s => s.id === item.id);
+                    if (ri) { ri.isAbsent = chk.checked; saveAndRender(true); }
+                };
+                absLabel.append(chk, ' 미점검 (부재)');
+                itemDiv.append(absLabel);
 
-                var d=document.createElement('button'); d.className='del-btn-iw'; d.innerText='점검완료 및 삭제';
-                d.onclick=function(){
-                    if(confirm(`'${item.title}' 삭제하시겠습니까?`)){
-                        currentSites=currentSites.filter(s=>s.id!==item.id);
-                        if(currentInfoWindow.getMap())currentInfoWindow.close();
+                /* ─── 길찾기 / 로드뷰 외부 링크 ─── */
+                var g = document.createElement('div');
+                g.className = 'iw-btn-group';
+                var n = document.createElement('a');
+                n.className = 'nav-btn';
+                n.href = `https://map.naver.com/v5/directions/-/${item.lng},${item.lat},${encodeURIComponent(item.title)}/-/car`;
+                n.target = "_blank";
+                n.innerText = "🚗 길찾기";
+                var rv = document.createElement('a');
+                rv.className = 'rv-btn';
+                rv.href = `https://map.naver.com/v5/?c=15,0,0,0,dh&p=${item.lng},${item.lat},180,0,0,0,Panorama`;
+                rv.target = "_blank";
+                rv.innerText = "👁️ 로드뷰";
+                g.append(n, rv);
+                itemDiv.append(g);
+
+                /* ─── 개별 삭제 버튼 ─── */
+                var d = document.createElement('button');
+                d.className = 'del-btn-iw';
+                d.innerText = '점검완료 및 삭제';
+                d.onclick = function() {
+                    if (confirm(`'${item.title}' 삭제하시겠습니까?`)) {
+                        currentSites = currentSites.filter(s => s.id !== item.id);
+                        if (currentInfoWindow.getMap()) currentInfoWindow.close();
                         saveAndRender();
                     }
                 };
-                itemDiv.append(d); listArea.append(itemDiv);
+                itemDiv.append(d);
+                listArea.append(itemDiv);
             });
 
             container.appendChild(listArea);
-            naver.maps.Event.addListener(m,'click',function(){ currentInfoWindow.setContent(container); currentInfoWindow.open(map,m); });
+
+            // 마커 클릭 시 인포윈도우 열기 (단일 인스턴스 재사용)
+            naver.maps.Event.addListener(m, 'click', function() {
+                currentInfoWindow.setContent(container);
+                currentInfoWindow.open(map, m);
+            });
             return m;
         });
     }
 
-    /* ── 마커 렌더링 ── */
+    /* ═══════════════════════════════════════════════════════════
+       [전체 다시 그리기]
+       └ 기존 클러스터러/마커 모두 제거 → 필터 적용 → 재배치
+    ═══════════════════════════════════════════════════════════ */
     function drawMarkers() {
-        if(clusterer) clusterer.setMap(null);
-        renderedMarkers.forEach(m=>m.setMap(null)); renderedMarkers=[];
+        // 기존 클러스터러/마커 정리
+        if (clusterer) clusterer.setMap(null);
+        renderedMarkers.forEach(m => m.setMap(null));
+        renderedMarkers = [];
 
-        var filtered=getFilteredSites();
-        renderedMarkers=buildMarkerObjects(filtered);
+        var filtered = getFilteredSites();
+        renderedMarkers = buildMarkerObjects(filtered);
 
-        var htmlMarker={
-            content:'<div style="cursor:pointer;width:40px;height:40px;line-height:42px;font-size:13px;color:white;text-align:center;font-weight:bold;background:rgba(0,85,170,0.9);border-radius:20px;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>',
-            size:new naver.maps.Size(40,40), anchor:new naver.maps.Point(20,20)
+        // 클러스터 아이콘 스타일
+        var htmlMarker = {
+            content: '<div style="cursor:pointer;width:40px;height:40px;line-height:42px;font-size:13px;color:white;text-align:center;font-weight:bold;background:rgba(0,85,170,0.9);border-radius:20px;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>',
+            size:   new naver.maps.Size(40, 40),
+            anchor: new naver.maps.Point(20, 20)
         };
 
-        if(isClusteringOn){
-            clusterer=new MarkerClustering({
-                minClusterSize:2, maxZoom:15, map, markers:renderedMarkers,
-                disableClickZoom:false, gridSize:120, icons:[htmlMarker],
-                indexGenerator:[10,100,200,500,1000],
-                stylingFunction:function(cm,count){cm.getElement().querySelector('div:first-child').innerText=count;}
+        if (isClusteringOn) {
+            clusterer = new MarkerClustering({
+                minClusterSize: 2,
+                maxZoom: 15,
+                map,
+                markers: renderedMarkers,
+                disableClickZoom: false,
+                gridSize: 120,
+                icons: [htmlMarker],
+                indexGenerator: [10, 100, 200, 500, 1000],
+                stylingFunction: function(cm, count) {
+                    cm.getElement().querySelector('div:first-child').innerText = count;
+                }
             });
         } else {
-            renderedMarkers.forEach(m=>m.setMap(map));
+            // 클러스터링 OFF면 마커 직접 표시
+            renderedMarkers.forEach(m => m.setMap(map));
         }
 
-        var stText=currentSites.length+"건 원본 중 "+filtered.length+"건 표출";
-        if(quickSearchKeyword) stText+=" (검색결과)";
-        document.getElementById('status').innerText=stText;
+        var stText = `${currentSites.length}건 원본 중 ${filtered.length}건 표출`;
+        if (quickSearchKeyword) stText += " (검색결과)";
+        document.getElementById('status').innerText = stText;
         renderFailedListUI();
     }
 
-    function saveAndRender(reDraw=true) {
-        try{ localStorage.setItem('kesco_map_data',JSON.stringify(currentSites)); }catch(e){}
-        if(reDraw) drawMarkers();
+    /** 데이터 영속화 + (옵션) 재렌더링 */
+    function saveAndRender(reDraw = true) {
+        try { localStorage.setItem('kesco_map_data', JSON.stringify(currentSites)); } catch(e) {}
+        if (reDraw) drawMarkers();
     }
 
+    /* ═══════════════════════════════════════════════════════════
+       [전체 초기화] 데이터 + 설정 모두 삭제 후 새로고침
+    ═══════════════════════════════════════════════════════════ */
     document.getElementById('clear-btn').onclick = function() {
-        if(confirm("모든 데이터를 삭제하시겠습니까?")){ 
-            localStorage.removeItem('kesco_map_data'); 
-            localStorage.removeItem('kesco_settings'); // 설정값도 함께 완전 초기화
-            location.reload(); 
+        if (confirm("모든 데이터를 삭제하시겠습니까?")) {
+            localStorage.removeItem('kesco_map_data');
+            localStorage.removeItem('kesco_settings');
+            location.reload();
         }
     };
 </script>
