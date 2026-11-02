@@ -96,7 +96,8 @@
 
         /* ───── 지도 ───── */
         #mapWrap { position: relative; min-width: 0; min-height: 0; }
-        #map { position: absolute; inset: 0; }
+        /* 지도 SDK가 position을 인라인으로 덮어쓰므로 !important가 필요하다 */
+        #map { position: absolute !important; inset: 0; }
         .layers { position: absolute; top: 12px; right: 12px; display: flex; border-radius: var(--r-control); background: var(--surface); border: 1px solid var(--control); overflow: hidden; z-index: 100; }
         .layers button { min-height: 36px; padding: 0 12px; border: 0; background: none; color: var(--muted); font-size: 13px; font-weight: 500; }
         .layers button + button { border-left: 1px solid var(--border); }
