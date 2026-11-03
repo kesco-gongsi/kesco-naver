@@ -390,6 +390,7 @@
     var currentSites = [];
     var myLocMarker = null;
     var renderedMarkers = [];
+    var markerCache = {};                // 좌표 키 → { sig, marker }: 모양이 같으면 다시 쓴다
 
     /* UI/필터 상태 */
     var isDistrictOn = false;            // 지적편집도 표시 여부
@@ -1310,7 +1311,8 @@
             groups[key].push(s);
         });
 
-        // 2) 각 그룹 → 1개의 Marker
+        // 2) 각 그룹 → 1개의 Marker. 이번에 없는 좌표의 마커는 버린다
+        Object.keys(markerCache).forEach(function(k) { if (!groups[k]) delete markerCache[k]; });
         return Object.keys(groups).map(function(key) {
             var group     = groups[key];
             var first     = group[0];
@@ -1321,6 +1323,10 @@
             // 라벨: 매칭주소 → 원본주소 → 제목 순
             var labelHtml = buildLabelHtml(first.addr || first.addrText || first.title || '');
             var svgInner  = buildMarkerSvg(isPole, mColor, hasAbsent, MARKER_W, MARKER_H);
+
+            // 모양이 그대로인 핀은 지난번 마커를 다시 쓴다 (천 개가 넘으면 새로 만드는 데 오래 걸린다)
+            var sig = [first.lat, first.lng, labelHtml, mColor, hasAbsent, isPole].join('|');
+            if (markerCache[key] && markerCache[key].sig === sig) return markerCache[key].marker;
 
             // 마커 HTML (라벨 + 아이콘)
             var markerContent = `<div style="position:relative;display:inline-block;text-align:center;">
@@ -1341,6 +1347,7 @@
             });
 
             naver.maps.Event.addListener(m, 'click', function() { selectLocation(key); });
+            markerCache[key] = { sig: sig, marker: m };
             return m;
         });
     }
@@ -1389,10 +1396,12 @@
         sortRows(rows);
 
         var ul = $('list');
+        var listShown = !isPhone() || document.body.classList.contains('list-open');
         var scroll = ul.scrollTop;
         ul.textContent = '';
+        if (!listShown) rows = [];
 
-        if (!rows.length) {
+        if (listShown && !rows.length) {
             var li = el('li', 'empty');
             if (currentSites.length) {
                 li.textContent = '조건에 맞는 점검지가 없습니다. 검색어나 필터를 바꿔 보세요.';
@@ -1650,11 +1659,12 @@
         setFilters(open);
         if (open) setPhoneMenu(false);
     };
-    $('pmList').onclick     = function() { setPhoneMenu(false); document.body.classList.add('list-open'); };
+    function openList() { document.body.classList.add('list-open'); renderPanel(getFilteredSites()); }
+    $('pmList').onclick     = function() { setPhoneMenu(false); openList(); };
     $('pmSettings').onclick = function() { setPhoneMenu(false); openSettings(); };
     $('pmFail').onclick     = function() { setPhoneMenu(false); $('failBtn').click(); };
     $('closeSettings').onclick = function() { $('dlgSettings').close(); };
-    $('peek').onclick      = function() { document.body.classList.add('list-open'); };
+    $('peek').onclick      = openList;
     $('closeList').onclick = function() { document.body.classList.remove('list-open'); };
 
     /* ═══════════════════════════════════════════════════════════
